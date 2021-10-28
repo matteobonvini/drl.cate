@@ -79,6 +79,7 @@ gen_data <- function(n){
 }
 
 dat <- gen_data(n)
+
 res_drl <- dr_learner(x0 = x0, y = dat$y, a = dat$a, x = dat[, -c(1:2), drop = FALSE],
                   drl.x = drl.x, mu1.x = mu1.x, mu0.x = mu0.x, pi.x = pi.x,
                   nsplits = 5)
