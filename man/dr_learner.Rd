@@ -36,7 +36,7 @@ a list containing the following components:
 \item{fold_k_est}{ length(x0)xnsplits matrix with estimates of the CATE at x0 in each fold.}
 }
 \description{
-This functions computes the DR-Learner approach to CATE estimation.
+This function computes the DR-Learner approach to CATE estimation.
 }
 \examples{
 drl.x <- function(y, x, new.x) {

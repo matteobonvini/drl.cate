@@ -1,5 +1,7 @@
 # Examples for the DR-Learner and Lp-R-Learner.
 set.seed(1234)
+require(orthopolynom)
+require(SuperLearner)
 # some helper functions
 expit <- function(x) exp(x) / (1 + exp(x))
 logit <- function(x) log( x / (1 - x))
@@ -12,7 +14,7 @@ mu1.x <- function(y, x, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
   return(fit$SL.predict)
 }
 
-mu0.x <- mu1.x
+mu.x <- mu0.x <- mu1.x
 
 pi.x <- function(a, x, new.x, sl.lib = c("SL.mean", "SL.glm", "SL.ranger",
                                          "SL.rpart")){
@@ -27,6 +29,21 @@ drl.x <- function(y, x, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
   fit <- SuperLearner::SuperLearner(Y = y, X = x, SL.library = sl.lib,
                                     newX = new.x)
   return(fit$SL.predict)
+}
+
+order_basis <- 10
+lp <- legendre.polynomials(n = order_basis, normalized = TRUE)
+lp.fns <- lapply(1:(order_basis + 1), function(u) as.function(lp[[u]]))
+
+basis.legendre <- function(x, j) {
+  return(lp.fns[[j]](x))
+}
+
+h <- 0.1
+kernel.gaussian <- function(x, x0) {
+  tmp <- function(u) prod(dnorm( as.matrix((u - x0)) / h) / h)
+  out <- apply(x, 1, tmp)
+  return(out)
 }
 
 # some generic parameters
@@ -57,21 +74,30 @@ gen_data <- function(n){
     (1 - a) * mu0_true(y = NULL, x = NULL, new.x = x) +
     rnorm(n, sd = (0.2 - 0.1 * cos(2 * pi * x$x)))
 
-  dat <- data.frame(y = y, a = a, x = x$x)
+  dat <- data.frame(y = y, a = a, x1 = x$x)
   return(dat)
 }
 
 dat <- gen_data(n)
-res <- dr_learner(x0 = x0, y = dat$y, a = dat$a, x = as.data.frame(dat$x),
+res_drl <- dr_learner(x0 = x0, y = dat$y, a = dat$a, x = dat[, -c(1:2), drop = FALSE],
                   drl.x = drl.x, mu1.x = mu1.x, mu0.x = mu0.x, pi.x = pi.x,
                   nsplits = 5)
-oracle <- dr_learner(x0 = x0, y = dat$y, a = dat$a, x = as.data.frame(dat$x),
+
+res_lprl <- lp_r_learner(x0 = x0, y = dat$y, a = dat$a, x = dat[, -c(1:2), drop = FALSE],
+                         mu.x = mu.x, pi.x = pi.x, basis = basis.legendre,
+                         order_basis = order_basis, kernel = kernel.gaussian)
+
+oracle <- dr_learner(x0 = x0, y = dat$y, a = dat$a, x = dat[, -c(1:2), drop = FALSE],
                      drl.x = drl.x, mu1.x = mu1_true, mu0.x = mu0_true,
                      pi.x = pix_true, nsplits = 5)
 
 plot(x0, y = rep(0, length(x0)), type = "l", col = "red", ylim = c(-1.5, 1.5),
      ylab = "E(Y^1 - Y^0)", xlab = "X0")
 lines(x0, y = oracle$est, col = "blue")
-lines(x0, y = res$est, col = "black")
-legend(0.25, 1.5, legend = c("Truth", "Oracle", "DR-Learner"),
-       col = c("red", "blue", "black"), cex = 0.8, lty = 1)
+lines(x0, y = res_drl$est, col = "black")
+lines(x0, y = res_lprl$est, col = "pink")
+legend(0.15, 1.5, legend = c("Truth", "Oracle", "DR-Learner", "Lp-R-Learner"),
+       col = c("red", "blue", "black", "pink"), cex = 0.8, lty = 1)
+
+
+

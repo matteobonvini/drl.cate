@@ -1,6 +1,6 @@
 #' DR-Learner
 #'
-#' This functions computes the DR-Learner approach to CATE estimation.
+#' This function computes the DR-Learner approach to CATE estimation.
 #' @param x0 evaluation points, i.e. E(Y^1 - Y^0 | x0)
 #' @param y vector of outcomes
 #' @param a vector of treatments
