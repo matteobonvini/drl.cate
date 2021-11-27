@@ -100,7 +100,7 @@ lp_r_learner <- function(x0, y, a, x, mu.x, pi.x, basis, order_basis, kernel) {
     }
   }
 
-  out <- list(est = apply(est, 1, mean), fold_k_est = est)
+  out <- list(est = apply(est, 1, mean), fold_est = est)
 
   return(out)
 }
