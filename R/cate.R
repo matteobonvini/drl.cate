@@ -96,7 +96,9 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
   
   if(any(learner %in% c("u", "r", "lp-r"))) {
     
-    mu.x.method <- args[["mu.x.method"]]
+    mu.x.method <- params[["mu.x.method"]]
+    ul.method <- params[["ul.method"]]
+    ul <- params[["ul"]]
     
     if(is.null(mu.x)) {
       
@@ -177,9 +179,9 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
   if(any(learner == "lp-r")) {
     
     est[["lp-r"]] <- lp_r_learner(x0 = v0, y = y, a = a, x = x, mu.x = mu.x,
-                                  pi.x = pi.x, basis = args[["basis"]], 
-                                  order_basis = args[["order_basis"]], 
-                                  kernel = args[["kernel"]])$fold_est
+                                  pi.x = pi.x, basis = params[["basis"]], 
+                                  order_basis = params[["order_basis"]], 
+                                  kernel = params[["kernel"]])$fold_est
     
   }
   

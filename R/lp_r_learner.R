@@ -22,11 +22,7 @@
 lp_r_learner <- function(x0, y, a, x, mu.x, pi.x, basis, order_basis, kernel) {
 
   n <- length(y)
-  x <- as.data.frame(x)
   d <- ncol(x)
-  colnames(x) <- paste0("X", 1:d)
-  x0 <- as.data.frame(x0)
-  colnames(x0) <- colnames(x)
 
   splits.mat <- matrix(c(1, 2, 3, 2, 3, 1, 3, 1, 2), ncol = 3, nrow = 3,
                        byrow = TRUE)
@@ -57,9 +53,9 @@ lp_r_learner <- function(x0, y, a, x, mu.x, pi.x, basis, order_basis, kernel) {
     n.te <- nrow(x.te)
 
 
-    muhat <- mu.x(y = y.tr0, x = x.tr0, new.x = x.te)
-    pi0hat <- pi.x(a = a.tr0, x = x.tr0, new.x = x.te)
-    pi1hat <- pi.x(a = a.tr1, x = x.tr1, new.x = x.te)
+    muhat <- mu.x(y.tr = y.tr0, x.tr = x.tr0, new.x = x.te)
+    pi0hat <- pi.x(a.tr = a.tr0, x.tr = x.tr0, new.x = x.te)
+    pi1hat <- pi.x(a.tr = a.tr1, x.tr = x.tr1, new.x = x.te)
 
     for(j in 1:nrow(x0)) {
 

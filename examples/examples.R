@@ -1,5 +1,6 @@
 # Examples for the DR-Learner and Lp-R-Learner.
 set.seed(1234)
+library(drl.cate)
 require(orthopolynom)
 require(SuperLearner)
 # some helper functions
@@ -7,7 +8,7 @@ expit <- function(x) exp(x) / (1 + exp(x))
 logit <- function(x) log( x / (1 - x))
 
 # functions to estimate nuisance regressions
-mu11.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
+mu1.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
                                                        "SL.polymars", "SL.rpart")){
   y1.tr <- y.tr[a.tr == 1]
   x1.tr <- as.data.frame(x.tr[a.tr == 1, , drop = FALSE])
