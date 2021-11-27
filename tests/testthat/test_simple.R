@@ -32,6 +32,7 @@ test_that("lasso based tests with no confounding and no effect", {
     return(lp.fns[[j]](x))
   }
   
+  h <- 0.2
   kernel.gaussian <- function(x, x0) {
     tmp <- function(u) prod(dnorm( as.matrix((u - x0)) / h) / h)
     out <- apply(x, 1, tmp)
