@@ -31,7 +31,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
     nsplits <- length(unique(foldid))
   }
 
-  est <- replicate(length(learner), matrix(NA, ncol = nsplits, nrow = nrow(v0)),
+  est <- replicate(length(learner), array(NA, dim(nrow(v0), 3, nsplits),
                    simplify = FALSE)
   names(est) <- learner
   if(any(learner == "lp-r")) {
@@ -158,14 +158,14 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
-        est[[alg]][, k] <- drl(y.tr = pseudo, x.tr = v.te, new.x = v0)
+        est[[alg]][, , k] <- drl(y.tr = pseudo, x.tr = v.te, new.x = v0)
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
           next # no need to smooth the t-learner if V = X
         } else {
           pseudo <- mu1hat - mu0hat
-          est[[alg]][, k] <- tl(y.tr = pseudo, x.tr = v.te, new.x = v0)
+          est[[alg]][, , k] <- tl(y.tr = pseudo, x.tr = v.te, new.x = v0)
         }
       } else if(alg == "u") {
 
