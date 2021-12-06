@@ -31,7 +31,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
     nsplits <- length(unique(foldid))
   }
 
-  est <- replicate(length(learner), array(NA, dim(nrow(v0), 3, nsplits),
+  est <- replicate(length(learner), array(NA, dim = c(nrow(v0), 3, nsplits)),
                    simplify = FALSE)
   names(est) <- learner
   if(any(learner == "lp-r")) {
@@ -170,7 +170,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
       } else if(alg == "u") {
 
         pseudo <- (y.te - muhat) / (a.te - pihat)
-        est[[alg]][, k] <- ul(y.tr = pseudo, x.tr = v.te, new.x = v0)
+        est[[alg]][, , k] <- ul(y.tr = pseudo, x.tr = v.te, new.x = v0)
 
       } else if(alg == "lp-r") next
     }
@@ -190,7 +190,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
       mu0.x(y.tr = y, a.tr = a, x = x, new.x = v0)
   }
 
-  out <- sapply(learner, function(w) apply(est[[w]], 1, mean))
+  out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
   ret <- list(est = out, fold_est = est)
   return(ret)
 }
