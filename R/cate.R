@@ -191,6 +191,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
   }
 
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
+
   ret <- list(est = out, fold_est = est)
   return(ret)
 }
