@@ -33,7 +33,12 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
   est <- replicate(length(learner), array(NA, dim = c(nrow(v0), 3, nsplits)),
                    simplify = FALSE)
-  names(est) <- learner
+  ites_v <- replicate(length(learner), matrix(NA, ncol = 3, nrow = n),
+                      simplify = FALSE)
+  ites_x <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
+                      simplify = FALSE)
+  names(est) <- names(ites_v) <- names(ites_x) <- learner
+
   if(any(learner == "lp-r")) {
     est[["lp-r"]] <- matrix(NA, ncol = 3, nrow = nrow(v0))
   }
@@ -62,6 +67,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
     mu1.x <- params[["mu1.x"]]
     mu0.x <- params[["mu0.x"]]
     drl <- params[["drl"]]
+    drl.ite <- params[["drl.ite"]]
 
     if(is.null(mu1.x)) {
 
@@ -159,6 +165,9 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
         est[[alg]][, , k] <- drl(y.tr = pseudo, x.tr = v.te, new.x = v0)
+        ites_v[[alg]][test.idx, ] <- drl(y.tr = pseudo, x.tr = v.te, new.x = v.te)
+        ites_x[[alg]][test.idx, 1] <- drl.ite(y.tr = pseudo, x.tr = x.te,
+                                             new.x = x.te)
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
@@ -192,7 +201,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
 
-  ret <- list(est = out, fold_est = est)
+  ret <- list(est = out, fold_est = est, ites_v = ites_v, ites_x = ites_x)
   return(ret)
 }
 
