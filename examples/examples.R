@@ -1,4 +1,6 @@
 # Examples for the DR-Learner and Lp-R-Learner.
+rm(list = ls())
+
 set.seed(1234)
 library(drl.cate)
 require(orthopolynom)
@@ -8,8 +10,8 @@ expit <- function(x) exp(x) / (1 + exp(x))
 logit <- function(x) log( x / (1 - x))
 
 # functions to estimate nuisance regressions
-mu1.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
-                                                       "SL.polymars", "SL.rpart")){
+mu1.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", 
+                                                      "SL.ranger", "SL.glmnet")){
   y1.tr <- y.tr[a.tr == 1]
   x1.tr <- as.data.frame(x.tr[a.tr == 1, , drop = FALSE])
   fit <- SuperLearner::SuperLearner(Y = y1.tr, X = x1.tr, SL.library = sl.lib,
@@ -17,8 +19,8 @@ mu1.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.ga
   return(fit$SL.predict)
 }
 
-mu0.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
-                                                      "SL.polymars", "SL.rpart")){
+mu0.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", 
+                                                      "SL.ranger", "SL.glmnet")){
   y0.tr <- y.tr[a.tr == 0]
   x0.tr <- as.data.frame(x.tr[a.tr == 0, , drop = FALSE])
   fit <- SuperLearner::SuperLearner(Y = y0.tr, X = x0.tr, SL.library = sl.lib,
@@ -26,23 +28,22 @@ mu0.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.ga
   return(fit$SL.predict)
 }
 
-mu.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
-                                                      "SL.polymars", "SL.rpart")){
+mu.x <- function(y.tr, a.tr, x.tr, new.x, sl.lib = c("SL.mean",
+                                                     "SL.ranger", "SL.glmnet")){
   fit <- SuperLearner::SuperLearner(Y = y.tr, X = as.data.frame(x.tr), SL.library = sl.lib,
                                     newX = as.data.frame(new.x))
   return(fit$SL.predict)
 }
 
-pi.x <- function(a.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.glm", "SL.ranger",
-                                         "SL.rpart")){
+pi.x <- function(a.tr, x.tr, new.x, sl.lib = c("SL.mean",
+                                               "SL.ranger", "SL.glmnet")){
   fit <- SuperLearner::SuperLearner(Y = a.tr, X = as.data.frame(x.tr), SL.library = sl.lib,
                                     newX = as.data.frame(new.x))
   return(fit$SL.predict)
 }
 
-drl.x <- function(y.tr, x.tr, new.x, sl.lib = c("SL.mean", "SL.lm", "SL.gam",
-                                          "SL.loess", "SL.glm", "SL.polymars",
-                                          "SL.rpart")){
+drl.x <- function(y.tr, x.tr, new.x, sl.lib = c("SL.mean", 
+                                                "SL.ranger", "SL.glmnet")){
   fit <- SuperLearner::SuperLearner(Y = y.tr, X = as.data.frame(x.tr),
                                     SL.library = sl.lib,
                                     newX = as.data.frame(new.x))
