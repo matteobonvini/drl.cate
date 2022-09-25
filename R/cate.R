@@ -149,8 +149,8 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
     if(any(learner %in% c("dr", "t"))) {
 
-      mu1hat <- mu1.x(y = y.tr, a.tr = a.tr, x = x.tr, new.x = x.te)
-      mu0hat <- mu0.x(y = y.tr, a.tr = a.tr, x = x.tr, new.x = x.te)
+      mu1hat <- mu1.x(y = y.tr, a = a.tr, x = x.tr, new.x = x.te)
+      mu0hat <- mu0.x(y = y.tr, a = a.tr, x = x.tr, new.x = x.te)
 
     }
 
@@ -166,11 +166,11 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
-        est[[alg]][, , k] <- drl(y.tr = pseudo, x.tr = v.te, new.x = v0)
+        drl.vals <-  drl(y = pseudo, x.tr = v.te, new.x = rbind(v0, v.te))
+        est[[alg]][, , k] <- drl.vals[1:nrow(v0), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
-        ites_v[[alg]][test.idx, ] <- drl(y.tr = pseudo, x.tr = v.te, new.x = v.te)
-        ites_x[[alg]][test.idx, 1] <- drl.ite(y.tr = pseudo, x.tr = x.te,
-                                              new.x = x.te)
+        ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0)+1):nrow(drl.vals), ]
+        ites_x[[alg]][test.idx, 1] <- drl.ite(y = pseudo, x = x.te, new.x = x.te)
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
