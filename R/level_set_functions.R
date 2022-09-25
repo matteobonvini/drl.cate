@@ -40,7 +40,7 @@ unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {
 }
 
 
-#' cate.lvl.set
+#' cate_lvl_set
 #' 
 #' This function estimates the upper level set of the cate
 #' 
@@ -53,7 +53,7 @@ unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {
 #' @param B number of bootstrap replications, ignored if se = FALSE.
 #' @param alpha 1-confidence level, ignored if se = FALSE. 
 #' @export
-cate.lvl.set <- function(theta, cate.obj, set_type = "upper", 
+cate_lvl_set <- function(theta, cate.obj, set_type = "upper", 
                          se = TRUE, B = 1000, alpha = 0.05) {
   # it currently works only when effect modifiers are 2D
   cate.vals <- cate.obj$predictions

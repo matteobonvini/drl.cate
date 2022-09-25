@@ -18,3 +18,4 @@ Collate:
     'cate.R'
     'lp_r_learner.R'
     'nuisance_functions.R'
+    'level_set_functions.R'
