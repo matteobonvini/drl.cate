@@ -5,7 +5,7 @@
 #' @param design.mat.v0 design matrix of evaluation points.
 #' @param design.mat.v design matrix of observed v points.
 #' @param residuals observed residuals, i.e. pseudo.y - fitted.
-#' @param B number of bootstrap replications
+#' @param B number of bootstrap replications.
 #' @param alpha 1-confidence level, e.g. alpha = 0.05.
 #' @return a list containing the following components:
 #' \item{cutoff}{ the estimated quantile}
@@ -52,6 +52,11 @@ unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {
 #' @param se boolean for whether confidence sets should be returned.
 #' @param B number of bootstrap replications, ignored if se = FALSE.
 #' @param alpha 1-confidence level, ignored if se = FALSE.
+#' @return a list containing the following components:
+#' \item{level_set}{ the estimated level sets}
+#' \item{chat.l}{ lower confidence set}
+#' \item{chat.u}{ upper confidence set}
+#' \item{cutoff}{ cutoff from multiplier bootstrap}
 #' @export
 cate_lvl_set <- function(theta, cate.obj, set_type = "upper",
                          se = TRUE, B = 1000, alpha = 0.05) {

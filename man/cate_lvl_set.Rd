@@ -28,6 +28,13 @@ should be computed. Currently ignored.}
 
 \item{alpha}{1-confidence level, ignored if se = FALSE.}
 }
+\value{
+a list containing the following components:
+\item{level_set}{ the estimated level sets}
+\item{chat.l}{ lower confidence set}
+\item{chat.u}{ upper confidence set}
+\item{cutoff}{ cutoff from multiplier bootstrap}
+}
 \description{
 This function estimates the upper level set of the cate
 }

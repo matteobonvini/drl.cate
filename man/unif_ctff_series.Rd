@@ -11,7 +11,7 @@ unif_ctff_series(design.mat.v0, residuals, design.mat, B, alpha)
 
 \item{residuals}{observed residuals, i.e. pseudo.y - fitted.}
 
-\item{B}{number of bootstrap replications}
+\item{B}{number of bootstrap replications.}
 
 \item{alpha}{1-confidence level, e.g. alpha = 0.05.}
 
