@@ -10,7 +10,7 @@
 #' @return a list containing the following components:
 #' \item{cutoff}{ the estimated quantile}
 #' \item{sigma.hat}{ vector of estimated standard devition of sigma(v)}
-#' \item{Omega.hat.sqrt} { Omega matrix}
+#' \item{Omega.hat.sqrt}{ Omega matrix}
 #' @export
 #' @references Chernozhukov et al (2014).
 unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {

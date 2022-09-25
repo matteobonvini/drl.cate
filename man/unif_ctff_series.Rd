@@ -21,7 +21,7 @@ unif_ctff_series(design.mat.v0, residuals, design.mat, B, alpha)
 a list containing the following components:
 \item{cutoff}{ the estimated quantile}
 \item{sigma.hat}{ vector of estimated standard devition of sigma(v)}
-\item{Omega.hat.sqrt} { Omega matrix}
+\item{Omega.hat.sqrt}{ Omega matrix}
 }
 \description{
 This function calculates the quantile of sup_v|tauhat(v) - tau(v)| / sigma(v)
