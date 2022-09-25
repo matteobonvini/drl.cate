@@ -166,7 +166,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
-        drl.vals <-  drl(y = pseudo, x.tr = v.te, new.x = rbind(v0, v.te))
+        drl.vals <-  drl(y = pseudo, x = v.te, new.x = rbind(v0, v.te))
         est[[alg]][, , k] <- drl.vals[1:nrow(v0), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0)+1):nrow(drl.vals), ]
@@ -177,12 +177,12 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
           next # no need to smooth the t-learner if V = X
         } else {
           pseudo <- mu1hat - mu0hat
-          est[[alg]][, , k] <- tl(y.tr = pseudo, x.tr = v.te, new.x = v0)
+          est[[alg]][, , k] <- tl(y = pseudo, x = v.te, new.x = v0)
         }
       } else if(alg == "u") {
 
         pseudo <- (y.te - muhat) / (a.te - pihat)
-        est[[alg]][, , k] <- ul(y.tr = pseudo, x.tr = v.te, new.x = v0)
+        est[[alg]][, , k] <- ul(y = pseudo, x = v.te, new.x = v0)
 
       } else if(alg == "lp-r") next
     }
@@ -198,7 +198,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
   }
 
   if(any(learner == "t") & all(colnames(x) %in% colnames(v))) {
-    est[["t"]][, 1] <- mu1.x(y.tr = y, a.tr = a, x = x, new.x = v0) -
+    est[["t"]][, 1] <- mu1.x(y = y, a = a, x = x, new.x = v0) -
       mu0.x(y.tr = y, a.tr = a, x = x, new.x = v0)
   }
 
