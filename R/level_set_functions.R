@@ -19,7 +19,7 @@ unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {
   # P(sup_v|tauhat(v) - tau(v)| / sigma(v) <= c_n(1-alpha)) = 1 - alpha - o(1)
   # using the method by Chernozhukov et al (2014) where
   # tauhat is based on orthogonal series regression.
-
+  norm.sq <- function(x) sqrt(sum(x^2))
   k <- ncol(design.mat)
   n <- nrow(design.mat)
   Q.hat <- t(design.mat) %*% design.mat / n
