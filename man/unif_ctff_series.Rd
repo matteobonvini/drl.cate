@@ -28,5 +28,5 @@ This function calculates the quantile of sup_v|tauhat(v) - tau(v)| / sigma(v)
 when tauhat(x) is based on a orthogonal series second stage regression.
 }
 \references{
-Chernozhukov et al (2014)..
+Chernozhukov et al (2014).
 }

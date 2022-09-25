@@ -2,7 +2,7 @@
 % Please edit documentation in R/cate.lvl.set.R
 \name{cate.lvl.set}
 \alias{cate.lvl.set}
-\title{unif_ctff_series}
+\title{cate.lvl.set}
 \usage{
 cate.lvl.set(
   theta,

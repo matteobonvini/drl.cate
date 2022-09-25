@@ -12,7 +12,7 @@
 #' \item{sigma.hat}{ vector of estimated standard devition of sigma(v)}
 #' \item{Omega.hat.sqrt} { Omega matrix }
 #' @export
-#' @references Chernozhukov et al (2014)..
+#' @references Chernozhukov et al (2014).
 unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {
   
   # estimate c_n(1-alpha) such that 
@@ -40,7 +40,7 @@ unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {
 }
 
 
-#' unif_ctff_series
+#' cate.lvl.set
 #' 
 #' This function estimates the upper level set of the cate
 #' 
