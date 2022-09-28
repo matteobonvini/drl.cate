@@ -31,8 +31,8 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
     nsplits <- length(unique(foldid))
   }
 
-  est <- replicate(length(learner), array(NA, dim = c(nrow(v0), 3, nsplits)),
-                   simplify = FALSE)
+  est <- replicate(length(learner), array(NA, dim = c(ifelse(is.matrix(v0), nrow(v0), length(v0)),
+                                                      3, nsplits)), simplify = FALSE)
   pseudo.y <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                         simplify = FALSE)
   ites_v <- replicate(length(learner), matrix(NA, ncol = 3, nrow = n),
@@ -143,8 +143,12 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
     x.te <- x[test.idx, , drop = FALSE]
     a.te <- a[test.idx]
     y.te <- y[test.idx]
-    v.te <- v[test.idx, , drop = FALSE]
-
+    
+    if (!is.matrix(v)){
+      v.te <- v[test.idx]
+    } else{
+      v.te <- v[test.idx, , drop = FALSE]}
+    
     pihat <- pi.x(a = a.tr, x = x.tr, new.x = x.te)
 
     if(any(learner %in% c("dr", "t"))) {
