@@ -32,7 +32,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
   }
 
   est <- replicate(length(learner), array(NA, dim = c(ifelse((is.data.frame(v0)) | (is.matrix(v0)), nrow(v0), length(v0)),
-                                                      length(v0)), 3, nsplits)), simplify = FALSE)
+                                                      3, nsplits)), simplify = FALSE)
   pseudo.y <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                         simplify = FALSE)
   ites_v <- replicate(length(learner), matrix(NA, ncol = 3, nrow = n),
