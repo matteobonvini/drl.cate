@@ -54,6 +54,7 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
   if(is.null(pi.x) & !is.null(pi.x.method)) {
 
     if(pi.x.method == "lasso") pi.x <- pi.x.lasso
+    else if(pi.x.method == "glm") pi.x <- pi.x.glm
     else if(pi.x.method == "SL") pi.x <- pi.x.SL(params[["sl.lib.pi"]])
     else stop("Provide valid method for estimating the propensity score.")
 
@@ -75,6 +76,8 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
       if(mu1.x.method == "lasso") {
         mu1.x <- mu1.x.lasso
+      } else if(mu1.x.method == "lm"){
+        mu1.x <- mu1.x.lm
       } else if(mu1.x.method == "SL") {
         mu1.x <- mu1.x.SL(sl.lib)
       } else stop("Provide valid method for estimating the E(Y|A=1,X).")
@@ -85,6 +88,8 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
       if(mu0.x.method == "lasso") {
         mu0.x <- mu0.x.lasso
+      } else if(mu0.x.method == "lm"){
+        mu0.x <- mu0.x.lm
       } else if(mu0.x.method == "SL") {
         mu0.x <- mu0.x.SL
       } else stop("Provide valid method for estimating the E(Y|A=0,X).")
@@ -94,6 +99,8 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 
       if(drl.method == "lasso") {
         drl <- drl.lasso
+      } else if(drl.method == "lm"){
+        drl <- drl.lm
       } else if(drl.method == "SL") {
         drl <- drl.SL
       } else stop("Provide valid method for second-stage regression.")
