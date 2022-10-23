@@ -1,4 +1,4 @@
-get_input <- function(data, x_names, y_name, a_name, v_names){
+get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
   
   # a function that return sanitized input according to covariate names
   
@@ -10,19 +10,16 @@ get_input <- function(data, x_names, y_name, a_name, v_names){
     stop("variable names do not match")
   }
   
-  data.est <- data %>% rename(a = a_name, y = y_name) %>%
-    dplyr::select(all_of(c("y", "a", x_names)))
-  
-  a <- pull(data.est, "a")
-  y <- pull(data.est, "y")
-  x <- data.est %>% dplyr::select(all_of(x_names))
-  v <- data.est %>% dplyr::select(all_of(v_names))
+  a <- data[,a_name]
+  y <- data[,y_name]
+  x <- data[,x_names]
+  v <- x[,v_names]
   
   # for now v0.long only works for 2 dimensional v
   colnames(v) <- stringr::str_c("v", 1:ncol(v))
   
-  v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = 100)
-  v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = 100)
+  v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = num_grid)
+  v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)
   v0 <- cbind(v1 = v1.vals, v2 = v2.vals)
   v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
   
@@ -128,7 +125,7 @@ pi.x.glm <- function(a, x, new.x) {
 }
 
 drl.lm <- function(y, x, new.x) {
-  fit <- lm(y ~ poly(v1, 3, raw = TRUE) + poly(v2, 3, raw = TRUE),
+  fit <- lm(y ~ poly(x[, 1], 3, raw = TRUE) + poly(x[, 2], 3, raw = TRUE),
             data = as.data.frame(cbind(y = y, x)))
   ret <- cbind(predict(fit, newdata = as.data.frame(new.x)), NA, NA)
   return(ret)
@@ -142,3 +139,4 @@ drl.ite.lm <- function(y, x, new.x) {
   return(predict(fit, newdata = new.x))
   
 }
+

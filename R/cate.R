@@ -18,12 +18,27 @@
 #' @references Kennedy, EH. (2020). Optimal Doubly Robust Estimation of
 #' Heterogeneous Causal Effects. \emph{arXiv preprint arXiv:2004.14497}.
 
-cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
-
+# cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
+cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid = 100,
+                 nsplits = 5, foldid = NULL, ...) {
+    
   params <- list(...)
 
-  n <- length(y)
+  dta <- get_input(data_frame, x_names, y_name, a_name, v_names, num_grid)
 
+  a <- dta$a
+  v <- dta$v
+  v0.long <- dta$v0.long
+  v0 <- dta$v0
+  y <- dta$y
+  x <- dta$x
+  
+  # input data can override assigned covariates?
+  v0_input <- params[["v0"]]
+  if(!is.null(v0_input)) {v0 <- v0_input}
+
+  n <- length(y)
+  
   if(is.null(foldid)) {
     s <- sample(rep(1:nsplits, ceiling(n / nsplits))[1:n])
   } else {
@@ -181,7 +196,8 @@ cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
         est[[alg]][, , k] <- drl.vals[1:nrow(v0), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0)+1):nrow(drl.vals), ]
-        ites_x[[alg]][test.idx, 1] <- drl.ite(y = pseudo, x = x.te, new.x = x.te)
+        ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)[,1]
+        # ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
