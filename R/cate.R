@@ -21,7 +21,7 @@
 # cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid = 100,
                  nsplits = 5, foldid = NULL, ...) {
-    
+
   params <- list(...)
 
   dta <- get_input(data_frame, x_names, y_name, a_name, v_names, num_grid)
@@ -32,13 +32,13 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
   v0 <- dta$v0
   y <- dta$y
   x <- dta$x
-  
+
   # input data can override assigned covariates?
   v0_input <- params[["v0"]]
   if(!is.null(v0_input)) {v0 <- v0_input}
 
   n <- length(y)
-  
+
   if(is.null(foldid)) {
     s <- sample(rep(1:nsplits, ceiling(n / nsplits))[1:n])
   } else {
@@ -165,12 +165,12 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
     x.te <- x[test.idx, , drop = FALSE]
     a.te <- a[test.idx]
     y.te <- y[test.idx]
-    
+
     if ((!is.matrix(v)) & (!is.data.frame(v))){
       v.te <- v[test.idx]
     } else{
       v.te <- v[test.idx, , drop = FALSE]}
-    
+
     pihat <- pi.x(a = a.tr, x = x.tr, new.x = x.te)
 
     if(any(learner %in% c("dr", "t"))) {
@@ -232,7 +232,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
 
   ret <- list(est = out, fold_est = est, pseudo.y = pseudo.y, ites_v = ites_v,
-              ites_x = ites_x)
+              ites_x = ites_x, v0.long = v0.long, v0 = v0)
   return(ret)
 }
 
