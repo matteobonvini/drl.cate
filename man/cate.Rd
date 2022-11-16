@@ -4,12 +4,28 @@
 \alias{cate}
 \title{CATE}
 \usage{
-cate(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...)
+cate(
+  data_frame,
+  learner,
+  x_names,
+  y_name,
+  a_name,
+  v_names,
+  num_grid = 100,
+  nsplits = 5,
+  foldid = NULL,
+  ...
+)
 }
 \arguments{
-\item{v0}{evaluation points, i.e. E(Y^1 - Y^0 | V = v0)}
-
 \item{learner}{string specifying which learners to use, e.g. DR-Learner.}
+
+\item{nsplits}{a number indicating the number of splits used to do
+cross-fitting. Ignored if foldid is specified.}
+
+\item{foldid}{id vector specifying which observation belongs to which fold.}
+
+\item{v0}{evaluation points, i.e. E(Y^1 - Y^0 | V = v0)}
 
 \item{y}{vector of outcomes}
 
@@ -18,11 +34,6 @@ cate(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...)
 \item{x}{matrix of confounders}
 
 \item{v}{matrix of effect modifiers}
-
-\item{nsplits}{a number indicating the number of splits used to do
-cross-fitting. Ignored if foldid is specified.}
-
-\item{foldid}{id vector specifying which observation belongs to which fold.}
 }
 \value{
 a list containing the following components:
