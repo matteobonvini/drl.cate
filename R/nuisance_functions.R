@@ -18,10 +18,19 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
   # for now v0.long only works for 2 dimensional v
   colnames(v) <- stringr::str_c("v", 1:ncol(v))
   
-  v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = num_grid)
-  v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)
-  v0 <- cbind(v1 = v1.vals, v2 = v2.vals)
+  if (length(unique(v[,1])) <= 10|class(v[,1]) == 'factor'){
+    v1.vals <- unique(v[,1])
+  } else {v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = num_grid)}
+  
+  if (length(unique(v[,2])) <= 10|class(v[,2]) == 'factor'){
+    v2.vals <- unique(v[,2])
+  } else {v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)}
+  
   v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
+  
+  if (length(v1.vals) == length(v2.vals)){
+    v0 <- cbind(v1 = v1.vals, v2 = v2.vals)
+  } else {v0 <- v0.long}
   
   res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long= v0.long)
   return(res)
@@ -50,12 +59,13 @@ mu0.x.lasso <- function(y, a, x, new.x) {
   return(as.vector(out))
 }
 
+# update to also return the model
 drl.lasso <- function(y, x, new.x) {
   fit <-  glmnet::cv.glmnet(y = y, x = as.matrix(x))
   out <- predict(fit, newx = as.matrix(new.x), s = fit$lambda.min)
   # to align with drl function
   res <- cbind(as.vector(out), NA, NA)
-  return(res)
+  return(list(res = res, model = fit))
 }
 
 ul.lasso <- function(y.tr, x.tr, new.x) {
@@ -126,10 +136,11 @@ pi.x.glm <- function(a, x, new.x) {
 
 drl.lm <- function(y, x, new.x) {
   fit <- lm(y ~ poly(x[, 1], 3, raw = TRUE) + poly(x[, 2], 3, raw = TRUE),
+            # data = as.data.frame(cbind(y = y, x)))
             data = as.data.frame(cbind(y = y, x)))
-  ret <- cbind(predict(fit, newdata = as.data.frame(new.x)), NA, NA)
-  return(ret)
-  
+  out <- predict(fit, newdata = as.data.frame(new.x))
+  res <- cbind(out, NA, NA)
+  return((list(res = res, model = fit)))
 }
 
 drl.ite.lm <- function(y, x, new.x) {
@@ -138,5 +149,23 @@ drl.ite.lm <- function(y, x, new.x) {
             data = cbind(y, x))
   return(predict(fit, newdata = new.x))
   
+}
+
+drl.gam <- function(y, x, new.x) {
+  x1 <- colnames(x)[1]
+  x2 <- colnames(x)[2]
+  data <- cbind(y, x)
+  
+  fit <- mgcv::gam(as.formula(paste('y ~ s(', x1, ')+', x2)), data = as.data.frame(data))
+  out <- predict(fit, newdata = as.data.frame(new.x))
+  res <- cbind(out, NA, NA)
+  return((list(res = res, model = fit)))
+}
+
+drl.rf <- function(y, x, new.x) {
+  fit <- randomForest::randomForest(y~., data = cbind(y, x), ntree = 50)
+  out <- predict(fit, as.matrix(new.x))
+  res <- cbind(out, NA, NA)
+  return((list(res = res, model = fit)))
 }
 
