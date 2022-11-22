@@ -1,7 +1,7 @@
 get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
-  
+
   # a function that return sanitized input according to covariate names
-  
+
   if (!is.data.frame(data)| any(is.na(data))) {
     stop("input data need to be a dataframe with no missing data")
   }
@@ -9,21 +9,27 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
   if (!all(x_names %in% colnames(data))|!y_name %in% colnames(data)|!a_name %in% colnames(data)|!all(v_names %in% x_names)){
     stop("variable names do not match")
   }
-  
+
   a <- data[,a_name]
   y <- data[,y_name]
-  x <- data[,x_names]
-  v <- x[,v_names]
-  
+  x <- data[,x_names, drop = FALSE]
+  v <- x[,v_names, drop = FALSE]
+
   # for now v0.long only works for 2 dimensional v
   colnames(v) <- stringr::str_c("v", 1:ncol(v))
-  
-  v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = num_grid)
-  v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)
-  v0 <- cbind(v1 = v1.vals, v2 = v2.vals)
-  v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
-  
-  res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long= v0.long)
+
+  v1.vals <- seq(min(v[, 1]), max(v[, 1]),
+                 length.out = ifelse(length(unique(v[, 1])) < num_grid,
+                                     length(unique(v[, 1])), num_grid))
+  if(ncol(v) == 2) {
+    v2.vals <- seq(min(v[, 2]), max(v[, 2]),
+                   length.out = ifelse(length(unique(v[, 2])) < num_grid,
+                                       length(unique(v[, 2])), num_grid))
+    v0 <- cbind(v1 = v1.vals, v2 = v2.vals)
+    v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
+  } else {v0 <- v0.long <- matrix(v1.vals, ncol = 1)}
+
+  res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long = v0.long)
   return(res)
 }
 
@@ -129,14 +135,14 @@ drl.lm <- function(y, x, new.x) {
             data = as.data.frame(cbind(y = y, x)))
   ret <- cbind(predict(fit, newdata = as.data.frame(new.x)), NA, NA)
   return(ret)
-  
+
 }
 
 drl.ite.lm <- function(y, x, new.x) {
-  
+
   fit <- lm(y ~ poly(x[, 1], 3, raw = TRUE) + poly(x[, 2], 3, raw = TRUE),
             data = cbind(y, x))
   return(predict(fit, newdata = new.x))
-  
+
 }
 

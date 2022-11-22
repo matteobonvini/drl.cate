@@ -35,7 +35,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
   # input data can override assigned covariates?
   v0_input <- params[["v0"]]
-  if(!is.null(v0_input)) {v0 <- v0_input}
+  if(!is.null(v0_input)) {v0.long <- v0_input}
 
   n <- length(y)
 
@@ -46,8 +46,9 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
     nsplits <- length(unique(foldid))
   }
 
-  est <- replicate(length(learner), array(NA, dim = c(ifelse((is.data.frame(v0)) | (is.matrix(v0)), nrow(v0), length(v0)),
-                                                      3, nsplits)), simplify = FALSE)
+  est <- replicate(length(learner),
+                   array(NA, dim = c(nrow(v0.long), 3, nsplits)),
+                   simplify = FALSE)
   pseudo.y <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                         simplify = FALSE)
   ites_v <- replicate(length(learner), matrix(NA, ncol = 3, nrow = n),
@@ -57,10 +58,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
   names(est) <- names( pseudo.y) <- names(ites_v) <- names(ites_x) <- learner
 
   if(any(learner == "lp-r")) {
-    est[["lp-r"]] <- matrix(NA, ncol = 3, nrow = nrow(v0))
+    est[["lp-r"]] <- matrix(NA, ncol = 3, nrow = nrow(v0.long))
   }
   if(any(learner == "t") & all(colnames(x) %in% colnames(v))) {
-    est[["t"]] <- matrix(NA, ncol = 1, nrow = nrow(v0))
+    est[["t"]] <- matrix(NA, ncol = 1, nrow = nrow(v0.long))
   }
 
   pi.x <- params[["pi.x"]]
@@ -192,10 +193,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
-        drl.vals <-  drl(y = pseudo, x = v.te, new.x = rbind(v0, v.te))
-        est[[alg]][, , k] <- drl.vals[1:nrow(v0), ]
+        drl.vals <-  drl(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
+        est[[alg]][, , k] <- drl.vals[1:nrow(v0.long), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
-        ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0)+1):nrow(drl.vals), ]
+        ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0.long)+1):nrow(drl.vals), ]
         ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)[,1]
         # ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)
 
@@ -204,12 +205,12 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
           next # no need to smooth the t-learner if V = X
         } else {
           pseudo <- mu1hat - mu0hat
-          est[[alg]][, , k] <- tl(y = pseudo, x = v.te, new.x = v0)
+          est[[alg]][, , k] <- tl(y = pseudo, x = v.te, new.x = v0.long)
         }
       } else if(alg == "u") {
 
         pseudo <- (y.te - muhat) / (a.te - pihat)
-        est[[alg]][, , k] <- ul(y = pseudo, x = v.te, new.x = v0)
+        est[[alg]][, , k] <- ul(y = pseudo, x = v.te, new.x = v0.long)
 
       } else if(alg == "lp-r") next
     }
@@ -217,7 +218,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
   if(any(learner == "lp-r")) {
 
-    est[["lp-r"]] <- lp_r_learner(x0 = v0, y = y, a = a, x = x, mu.x = mu.x,
+    est[["lp-r"]] <- lp_r_learner(x0 = v0.long, y = y, a = a, x = x,
+                                  mu.x = mu.x,
                                   pi.x = pi.x, basis = params[["basis"]],
                                   order_basis = params[["order_basis"]],
                                   kernel = params[["kernel"]])$fold_est
@@ -225,8 +227,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
   }
 
   if(any(learner == "t") & all(colnames(x) %in% colnames(v))) {
-    est[["t"]][, 1] <- mu1.x(y = y, a = a, x = x, new.x = v0) -
-      mu0.x(y.tr = y, a.tr = a, x = x, new.x = v0)
+    est[["t"]][, 1] <- mu1.x(y = y, a = a, x = x, new.x = v0.long) -
+      mu0.x(y.tr = y, a.tr = a, x = x, new.x = v0.long)
   }
 
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
