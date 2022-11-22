@@ -18,11 +18,11 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
   # for now v0.long only works for 2 dimensional v
   colnames(v) <- stringr::str_c("v", 1:ncol(v))
 
-  if (length(unique(v[,1])) <= 10|class(v[,1]) == 'factor'){
+  if (length(unique(v[,1])) <= num_grid|class(v[,1]) == 'factor'){
     v1.vals <- unique(v[,1])
   } else {v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = num_grid)}
 
-  if (length(unique(v[,2])) <= 10|class(v[,2]) == 'factor'){
+  if (length(unique(v[,2])) <= num_grid|class(v[,2]) == 'factor'){
     v2.vals <- unique(v[,2])
   } else {v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)}
 
