@@ -22,12 +22,16 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
     v1.vals <- unique(v[,1])
   } else {v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = num_grid)}
 
-  if (length(unique(v[,2])) <= num_grid|class(v[,2]) == 'factor'){
-    v2.vals <- unique(v[,2])
-  } else {v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)}
-
-  v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
-  v0 <- list(v1 = v1.vals, v2 = v2.vals)
+  if(ncol(v) == 2) {
+    if (length(unique(v[,2])) <= num_grid|class(v[,2]) == 'factor'){
+      v2.vals <- unique(v[,2])
+    } else {v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)}
+    v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
+    v0 <- list(v1 = v1.vals, v2 = v2.vals)
+  } else {
+    v0.long <- matrix(v1.vals, ncol = 1)
+    v0 <- list(v1 = v1.vals)
+  }
 
   res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long= v0.long)
   return(res)
