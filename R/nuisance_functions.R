@@ -139,15 +139,9 @@ drl.lm <- function(y, x, new.x) {
   fit <- lm(y ~ poly(x[, 1], 3, raw = TRUE) + poly(x[, 2], 3, raw = TRUE),
             # data = as.data.frame(cbind(y = y, x)))
             data = as.data.frame(cbind(y = y, x)))
-<<<<<<< HEAD
-  ret <- cbind(predict(fit, newdata = as.data.frame(new.x)), NA, NA)
-  return(ret)
-
-=======
   out <- predict(fit, newdata = as.data.frame(new.x))
   res <- cbind(out, NA, NA)
   return((list(res = res, model = fit)))
->>>>>>> ceb0f967c4f4ffbb4942d89b0e27d0daa50c6be1
 }
 
 drl.ite.lm <- function(y, x, new.x) {
