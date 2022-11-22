@@ -70,7 +70,16 @@ cate_lvl_set <- function(theta, cate.obj, set_type = "upper",
 
   is.there.lvl.set <- min(cate.vals) <= theta & theta <= max(cate.vals)
 
-  if(is.there.lvl.set) res.binded <- as.matrix(bind_rows(res)[, -1])
+  if(is.there.lvl.set) {
+    res.binded <- data.frame(x = numeric(), y = numeric(), region = numeric())
+    for(i in 1:length(res)) {
+
+      tmp <- res[[i]]
+      res.binded <- rbind(res.binded, data.frame(x = tmp$x, y = tmp$y,
+                                                 region = i))
+    }
+  }
+
   else res.binded <- cbind(x = -1, y = -1)
   if(se) {
   residuals <- cate.obj$residuals
@@ -92,7 +101,7 @@ cate_lvl_set <- function(theta, cate.obj, set_type = "upper",
 
   } else chat.l <- chat.u <- ctf <- NA
   ret <- list(level.set = res.binded, chat.l = chat.l, chat.u = chat.u,
-              cutoff = ctf)
+              cutoff = ctf, level.set.list = res)
   return(ret)
 
 }
