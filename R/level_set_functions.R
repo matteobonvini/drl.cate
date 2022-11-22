@@ -63,8 +63,8 @@ cate_lvl_set <- function(theta, cate.obj, set_type = "upper",
   # it currently works only when effect modifiers are 2D
   cate.vals <- cate.obj$predictions
   v0 <- cate.obj$v0
-  v0.size <- nrow(v0)
-  cate.vals <- matrix(cate.vals, nrow = v0.size, ncol = v0.size, byrow = FALSE)
+  cate.vals <- matrix(cate.vals, nrow = length(v0$v1),
+                      ncol =  length(v0$v2), byrow = FALSE)
 
   res <- contourLines(x = v0$v1, y = v0$v2, z = cate.vals, levels = theta)
 
@@ -83,10 +83,10 @@ cate_lvl_set <- function(theta, cate.obj, set_type = "upper",
   ctf <- res.boot$cutoff
   sigma.hat <- res.boot$sigma.hat
 
-  ctf.l <- matrix(theta + sigma.hat * ctf, byrow = FALSE, ncol = v0.size,
-                  nrow = v0.size)
-  ctf.u <- matrix(theta - sigma.hat * ctf, byrow = FALSE, ncol = v0.size,
-                  nrow = v0.size)
+  ctf.l <- matrix(theta + sigma.hat * ctf, byrow = FALSE, ncol = length(v0$v2),
+                  nrow = length(v0$v1))
+  ctf.u <- matrix(theta - sigma.hat * ctf, byrow = FALSE, ncol = length(v0$v2),
+                  nrow = length(v0$v1))
   chat.l <- cate.vals > ctf.l
   chat.u <- cate.vals >= ctf.u
 
