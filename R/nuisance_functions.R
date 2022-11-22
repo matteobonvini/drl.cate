@@ -27,10 +27,7 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
   } else {v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)}
 
   v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
-
-  if (length(v1.vals) == length(v2.vals)){
-    v0 <- cbind(v1 = v1.vals, v2 = v2.vals)
-  } else {v0 <- v0.long}
+  v0 <- list(v1 = v1.vals, v2 = v2.vals)
 
   res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long= v0.long)
   return(res)
