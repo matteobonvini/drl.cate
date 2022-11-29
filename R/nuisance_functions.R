@@ -2,8 +2,8 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
 
   # a function that return sanitized input according to covariate names
 
-  if (!is.data.frame(data)| any(is.na(data))) {
-    stop("input data need to be a dataframe with no missing data")
+  if ((!is.data.frame(data)&!is.matrix(data))| any(is.na(data))) {
+    stop("input data need to be a dataframe/matrix with no missing data")
   }
   # check whether names in x,y,a,v in colnames(data)
   if (!all(x_names %in% colnames(data))|!y_name %in% colnames(data)|!a_name %in% colnames(data)|!all(v_names %in% x_names)){
