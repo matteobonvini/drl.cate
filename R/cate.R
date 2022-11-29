@@ -1,12 +1,13 @@
 #' CATE
 #'
 #' This function is a wrapper to estimate HTEs defined as E(Y^1 - Y^0 | V = v0)
-#' @param v0 evaluation points, i.e. E(Y^1 - Y^0 | V = v0)
+#' @param data_frame input data, containing covariates, treatments, outcomes and effect modifiers
 #' @param learner string specifying which learners to use, e.g. DR-Learner.
-#' @param y vector of outcomes
-#' @param a binary vector of treatments
-#' @param x matrix of confounders
-#' @param v matrix of effect modifiers
+#' @param x_names column names of confounders
+#' @param y_name column names of outcomes
+#' @param a_name column names of treatments
+#' @param v_name column names of effect modifiers
+#' @param num_grid number of intervals into which v is divided when calculating cate
 #' @param nsplits a number indicating the number of splits used to do
 #' cross-fitting. Ignored if foldid is specified.
 #' @param foldid id vector specifying which observation belongs to which fold.
@@ -18,7 +19,6 @@
 #' @references Kennedy, EH. (2020). Optimal Doubly Robust Estimation of
 #' Heterogeneous Causal Effects. \emph{arXiv preprint arXiv:2004.14497}.
 
-# cate <- function(v0, learner, y, a, x, v, nsplits = 5, foldid = NULL, ...) {
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid = 100,
                  nsplits = 5, foldid = NULL, ...) {
 
