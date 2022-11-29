@@ -11,7 +11,7 @@ margin_eff <- function(X, X.model, j, pred.fun, ite, K = 40){
   # K: The number of intervals into which the predictor range is divided when calculating the ALE plot effects. 
   
   if (class(X[,j]) == 'factor' | length(unique(X[,j])) <= 20){ # categorical case
-    print('categorical!')
+    # print('categorical!')
     vals <- unique(X[,j])
     bins <- length(vals)
     
@@ -43,34 +43,8 @@ margin_eff <- function(X, X.model, j, pred.fun, ite, K = 40){
     return(res)
     
   } else if (class(X[,j]) == 'numeric' | class(X[,j]) == 'integer'){ # continuous case
-    print('numerical!')
-    
-    #find the vector of z values corresponding to the quantiles of X[,J]
-    z= c(min(X[,j]), as.numeric(quantile(X[,j],seq(1/K,1,length.out=K), type=1)))  #vector of K+1 z values
-    z = unique(z)  #necessary if X[,J] is discrete, in which case z could have repeated values 
-    K = length(z)-1 #reset K to the number of unique quantile points
-    fJ = numeric(K)
-    #group training rows into bins based on z
-    a1=as.numeric(cut(X[,j], breaks=z, include.lowest=TRUE)) #N-length index vector indicating into which z-bin the training rows fall
-    X1 = X
-    X2 = X
-    X1[,j] = z[a1]
-    X2[,j] = z[a1+1]
-    y.hat1 = pred.fun(X.model=X.model, newdata = X1)
-    y.hat2 = pred.fun(X.model=X.model, newdata = X2)
-    Delta=y.hat2-y.hat1  #N-length vector of individual local effect values
-    Delta = as.numeric(tapply(Delta, a1, mean)) #K-length vector of averaged local effect values
-    fJ = c(0, cumsum(Delta)) #K+1 length vector
-    #now vertically translate fJ, by subtracting its average (averaged across X[,J])
-    b1 <- as.numeric(table(a1)) #frequency count of X[,J] values falling into z intervals
-    fJ = fJ - sum((fJ[1:K]+fJ[2:(K+1)])/2*b1)/sum(b1)
-    x <- z
-    # plot(x, fJ, type="l", xlab=paste("x_",j, " (", names(X)[j], ")", sep=""), ylab= paste("f_",j,"(x_",j,")", sep=""))
-    dta <- as.data.frame(cbind(x, fJ))
-    ggplot(dta, aes(x = x, y = fJ)) +
-      geom_line(size =0.8)+ 
-      geom_point(size=1.5)+
-      labs(x = eff.modif[j], y = 'ITEs', title = paste('Marginal effect of', eff.modif[j], 'to ITEs'))
+    # print('numerical!')
+    ALEPlot(X, X.model, pred.fun, j, K)
   }
 }
 
