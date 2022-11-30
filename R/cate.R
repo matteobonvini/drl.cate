@@ -1,13 +1,12 @@
 #' CATE
 #'
 #' This function is a wrapper to estimate HTEs defined as E(Y^1 - Y^0 | V = v0)
-#' @param data_frame input data, containing covariates, treatments, outcomes and effect modifiers
+#' @param v0 evaluation points, i.e. E(Y^1 - Y^0 | V = v0)
 #' @param learner string specifying which learners to use, e.g. DR-Learner.
-#' @param x_names column names of confounders
-#' @param y_name column names of outcomes
-#' @param a_name column names of treatments
-#' @param v_name column names of effect modifiers
-#' @param num_grid number of intervals into which v is divided when calculating cate
+#' @param y vector of outcomes
+#' @param a binary vector of treatments
+#' @param x matrix of confounders
+#' @param v matrix of effect modifiers
 #' @param nsplits a number indicating the number of splits used to do
 #' cross-fitting. Ignored if foldid is specified.
 #' @param foldid id vector specifying which observation belongs to which fold.
@@ -117,6 +116,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         drl <- drl.lasso
       } else if(drl.method == "lm"){
         drl <- drl.lm
+      } else if(drl.method == "gam") {
+        drl <- drl.gam
       } else if(drl.method == "SL") {
         drl <- drl.SL
       } else stop("Provide valid method for second-stage regression.")
@@ -193,12 +194,14 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
-        drl.vals <-  drl(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
+        drl.res <-  drl(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
+        drl.vals <-  drl.res$res
         est[[alg]][, , k] <- drl.vals[1:nrow(v0.long), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0.long)+1):nrow(drl.vals), ]
         ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)[,1]
         # ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)
+        reg.model <- drl.res$model
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
@@ -234,7 +237,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
 
   ret <- list(est = out, fold_est = est, pseudo.y = pseudo.y, ites_v = ites_v,
-              ites_x = ites_x, v0.long = v0.long, v0 = v0)
+              ites_x = ites_x, v0.long = v0.long, v0 = v0, reg_model = reg.model)
   return(ret)
 }
 
