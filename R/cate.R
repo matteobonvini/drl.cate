@@ -199,7 +199,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         est[[alg]][, , k] <- drl.vals[1:nrow(v0.long), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0.long)+1):nrow(drl.vals), ]
-        ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)$res[,1]
+        ites_x[[alg]][test.idx, 1] <- drl.ite(y = pseudo, x = x.te, new.x = x.te)$res[,1]
         # ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)
         reg.model <- drl.res$model
 
