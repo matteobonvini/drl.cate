@@ -34,7 +34,9 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
   # input data can override assigned covariates?
   v0_input <- params[["v0"]]
-  if(!is.null(v0_input)) {v0.long <- v0_input}
+  if(!is.null(v0_input)) {v0 <- v0_input}
+  v0_long_input <- params[["v0.long"]]
+  if(!is.null(v0_long_input)) {v0.long <- v0_long_input}
 
   n <- length(y)
 
