@@ -197,13 +197,15 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
         drl.res <-  drl(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
+        if(k == 1) {
+          drl.form <- drl.res$drl.form
+          reg.model <- drl.res$model
+        }
         drl.vals <-  drl.res$res
         est[[alg]][, , k] <- drl.vals[1:nrow(v0.long), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0.long)+1):nrow(drl.vals), ]
         ites_x[[alg]][test.idx, 1] <- drl.ite(y = pseudo, x = x.te, new.x = x.te)$res[,1]
-        # ites_x[[alg]][test.idx, 1] <- drl(y = pseudo, x = x.te, new.x = x.te)
-        reg.model <- drl.res$model
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
@@ -239,7 +241,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
 
   ret <- list(est = out, fold_est = est, pseudo.y = pseudo.y, ites_v = ites_v,
-              ites_x = ites_x, v0.long = v0.long, v0 = v0, reg_model = reg.model)
+              ites_x = ites_x, v0.long = v0.long, v0 = v0, v = v,
+              drl.form = drl.form, reg_model = reg.model)
   return(ret)
 }
 
