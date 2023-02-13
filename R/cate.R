@@ -47,16 +47,20 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
     nsplits <- length(unique(foldid))
   }
 
-  est <- replicate(length(learner),
-                   array(NA, dim = c(nrow(v0.long), 3, nsplits)),
-                   simplify = FALSE)
+  est <- est.pi <- replicate(length(learner),
+                             array(NA, dim = c(nrow(v0.long), 3, nsplits)),
+                             simplify = FALSE)
   pseudo.y <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                         simplify = FALSE)
   ites_v <- replicate(length(learner), matrix(NA, ncol = 3, nrow = n),
                       simplify = FALSE)
   ites_x <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                       simplify = FALSE)
-  names(est) <- names( pseudo.y) <- names(ites_v) <- names(ites_x) <- learner
+  names(est) <- names(est.pi) <- names( pseudo.y) <- names(ites_v) <-
+    names(ites_x) <- learner
+
+  stage2.reg.data <- vector("list", nsplits)
+  stage2.reg.preds <- vector("list", nsplits)
 
   if(any(learner == "lp-r")) {
     est[["lp-r"]] <- matrix(NA, ncol = 3, nrow = nrow(v0.long))
@@ -197,12 +201,23 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
         drl.res <-  drl(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
+        drl.res.pi <-  drl(y = mu1hat - mu0hat, x = v.te,
+                           new.x = rbind(v0.long, v.te))
+        stage2.reg.data[[k]] <- cbind(data.frame(pseudo = pseudo,
+                                                 mu1hat = mu1hat,
+                                                 mu0hat = mu0hat,
+                                                 pihat = pihat,
+                                                 y = y.te,
+                                                 a = a.te), v.te)
         if(k == 1) {
           drl.form <- drl.res$drl.form
           reg.model <- drl.res$model
         }
         drl.vals <-  drl.res$res
+        drl.vals.pi <-  drl.res.pi$res
+
         est[[alg]][, , k] <- drl.vals[1:nrow(v0.long), ]
+        est.pi[[alg]][, , k] <- drl.vals.pi[1:nrow(v0.long), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0.long)+1):nrow(drl.vals), ]
         ites_x[[alg]][test.idx, 1] <- drl.ite(y = pseudo, x = x.te, new.x = x.te)$res[,1]
@@ -240,9 +255,11 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
 
-  ret <- list(est = out, fold_est = est, pseudo.y = pseudo.y, ites_v = ites_v,
+  ret <- list(est = out, fold_est = est, fold_est_pi = est.pi,
+              pseudo.y = pseudo.y, ites_v = ites_v,
               ites_x = ites_x, v0.long = v0.long, v0 = v0, v = v,
-              drl.form = drl.form, reg_model = reg.model)
+              drl.form = drl.form, reg_model = reg.model,
+              stage2.reg.data = stage2.reg.data)
   return(ret)
 }
 
