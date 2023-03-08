@@ -136,9 +136,18 @@ pi.x.glm <- function(a, x, new.x) {
 }
 
 drl.lm <- function(y, x, new.x) {
-  fit <- lm(y ~ poly(x[, 1], 3, raw = TRUE) + poly(x[, 2], 3, raw = TRUE),
-            # data = as.data.frame(cbind(y = y, x)))
-            data = as.data.frame(cbind(y = y, x)))
+  dataset <- as.data.frame(cbind(y = y, x))
+  
+  # caution ncol(x)
+  if (ncol(x) == 1){
+    fit <- lm(y ~ poly(v1, 3, raw = TRUE),
+              # data = as.data.frame(cbind(y = y, x)))
+              data = dataset)
+  } else {
+    fit <- lm(y ~ poly(v1, 3, raw = TRUE) + poly(v2, 3, raw = TRUE),
+              # data = as.data.frame(cbind(y = y, x)))
+              data = dataset)
+  }
   out <- predict(fit, newdata = as.data.frame(new.x))
   res <- cbind(out, NA, NA)
   return((list(res = res, model = fit)))
