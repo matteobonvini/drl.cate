@@ -122,6 +122,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         drl <- drl.lasso
       } else if(drl.method == "lm"){
         drl <- drl.lm
+        else if(drl.method == "glm"){
+          drl <- drl.glm
       } else if(drl.method == "gam") {
         drl <- drl.gam
       } else if(drl.method == "SL") {

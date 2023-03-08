@@ -172,6 +172,14 @@ drl.gam <- function(y, x, new.x) {
   return((list(res = res, model = fit)))
 }
 
+drl.glm <- function(y, x, new.x) {
+  dataset <- as.data.frame(cbind(y = y, x))
+  fit <- glm(y ~ ., data = dataset, family = binomial(link = "logit"))
+  out <- predict(fit, newdata = as.data.frame(new.x), type = "response")
+  res <- cbind(out, NA, NA)
+  return((list(res = res, model = fit)))
+}
+
 drl.rf <- function(y, x, new.x) {
   fit <- randomForest::randomForest(y~., data = cbind(y, x), ntree = 50)
   out <- predict(fit, as.matrix(new.x))
