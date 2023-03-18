@@ -87,12 +87,12 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
     mu1.x.method <- params[["mu1.x.method"]]
     mu0.x.method <- params[["mu1.x.method"]]
-    drl.method <- params[["drl.method"]]
+    drl.v.method <- params[["drl.v.method"]]
+    drl.x.method <- params[["drl.x.method"]]
     mu1.x <- params[["mu1.x"]]
     mu0.x <- params[["mu0.x"]]
-    drl <- params[["drl"]]
-    drl.ite <- params[["drl.ite"]]
-    drl.ite.method <- params[["drl.ite.method"]]
+    drl.v <- params[["drl.v"]]
+    drl.x <- params[["drl.x"]]
 
     if(is.null(mu1.x)) {
 
@@ -118,30 +118,30 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
     }
     
-    if(is.null(drl) & any(learner == "dr")) {
+    if(is.null(drl.v) & any(learner == "dr")) {
 
-      if(drl.method == "lasso") {
-        drl <- drl.lasso
-      } else if(drl.method == "lm"){
-        drl <- drl.lm
-      } else if(drl.method == "glm"){
-        drl <- drl.glm
-      } else if(drl.method == "gam") {
-        drl <- drl.gam
-      } else if(drl.method == "SL") {
-        drl <- drl.SL
+      if(drl.v.method == "lasso") {
+        drl.v <- drl.lasso
+      } else if(drl.v.method == "lm"){
+        drl.v <- drl.lm
+      } else if(drl.v.method == "glm"){
+        drl.v <- drl.glm
+      } else if(drl.v.method == "gam") {
+        drl.v <- drl.gam
+      } else if(drl.v.method == "SL") {
+        drl.v <- drl.SL
       } else stop("Provide valid method for second-stage regression.")
 
     }
     
-    if(is.null(drl.ite) & any(learner == "dr")) {
-      if(is.null(drl.ite.method)) {
+    if(is.null(drl.x) & any(learner == "dr")) {
+      if(is.null(drl.x.method)) {
         # by default use lasso
-        drl.ite <- drl.lasso 
-      } else if (drl.ite.method == "lm"){
-        drl.ite <- drl.ite.lm
-      } else if (drl.ite.method == "lasso"){
-        drl.ite <- drl.lasso
+        drl.x <- drl.lasso 
+      } else if (drl.x.method == "lm"){
+        drl.x <- drl.ite.lm
+      } else if (drl.x.method == "lasso"){
+        drl.x <- drl.lasso
       } else stop("Provide valid method for second-stage regression.")
     }
   }
@@ -214,8 +214,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
-        drl.res <-  drl(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
-        drl.res.pi <-  drl(y = mu1hat - mu0hat, x = v.te,
+        drl.res <-  drl.v(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
+        drl.res.pi <-  drl.v(y = mu1hat - mu0hat, x = v.te,
                            new.x = rbind(v0.long, v.te))
         stage2.reg.data[[k]] <- cbind(data.frame(pseudo = pseudo,
                                                  mu1hat = mu1hat,
@@ -234,7 +234,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         est.pi[[alg]][, , k] <- drl.vals.pi[1:nrow(v0.long), ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0.long)+1):nrow(drl.vals), ]
-        ites_x[[alg]][test.idx, 1] <- drl.ite(y = pseudo, x = x.te, new.x = x.te)$res[,1]
+        ites_x[[alg]][test.idx, 1] <- drl.x(y = pseudo, x = x.te, new.x = x.te)$res[,1]
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
