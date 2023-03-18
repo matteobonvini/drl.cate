@@ -92,6 +92,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
     mu0.x <- params[["mu0.x"]]
     drl <- params[["drl"]]
     drl.ite <- params[["drl.ite"]]
+    drl.ite.method <- params[["drl.ite.method"]]
 
     if(is.null(mu1.x)) {
 
@@ -116,6 +117,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
       } else stop("Provide valid method for estimating the E(Y|A=0,X).")
 
     }
+    
     if(is.null(drl) & any(learner == "dr")) {
 
       if(drl.method == "lasso") {
@@ -131,7 +133,17 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
       } else stop("Provide valid method for second-stage regression.")
 
     }
-
+    
+    if(is.null(drl.ite) & any(learner == "dr")) {
+      if(is.null(drl.ite.method)) {
+        # by default use lasso
+        drl.ite <- drl.lasso 
+      } else if (drl.ite.method == "lm"){
+        drl.ite <- drl.ite.lm
+      } else if (drl.ite.method == "lasso"){
+        drl.ite <- drl.lasso
+      } else stop("Provide valid method for second-stage regression.")
+    }
   }
 
   if(any(learner %in% c("u", "r", "lp-r"))) {
