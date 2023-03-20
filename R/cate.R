@@ -128,8 +128,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         drl.v <- drl.glm
       } else if(drl.v.method == "gam") {
         drl.v <- drl.gam
-      } else if(drl.v.method == "SL") {
-        drl.v <- drl.SL
+      } else if(drl.v.method == "rf") {
+        drl.v <- drl.rf
       } else stop("Provide valid method for second-stage regression.")
 
     }
