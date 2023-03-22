@@ -26,7 +26,8 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
       tmp.vals <- seq(min(v[, i]), max(v[, i]), length.out = num_grid)
     }
     
-    v0[[paste0("v", i, ".vals")]] <- tmp.vals
+    # v0[[paste0("v", i, ".vals")]] <- tmp.vals
+    v0[[paste0("v", i)]] <- tmp.vals
   }
   v0.long <- expand.grid(v0)
 
