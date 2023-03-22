@@ -17,21 +17,18 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
 
   # for now v0.long only works for 2 dimensional v
   colnames(v) <- stringr::str_c("v", 1:ncol(v))
-
-  if (length(unique(v[,1])) <= 20|class(v[,1]) == 'factor'){
-    v1.vals <- sort(unique(v[,1]))
-  } else {v1.vals <- seq(min(v[, 1]), max(v[, 1]), length.out = num_grid)}
-
-  if(ncol(v) == 2) {
-    if (length(unique(v[,2])) <= 20|class(v[,2]) == 'factor'){
-      v2.vals <- sort(unique(v[,2]))
-    } else {v2.vals <- seq(min(v[, 2]), max(v[, 2]), length.out = num_grid)}
-    v0.long <- expand.grid(v1 = v1.vals, v2 = v2.vals)
-    v0 <- list(v1 = v1.vals, v2 = v2.vals)
-  } else {
-    v0.long <- matrix(v1.vals, ncol = 1)
-    v0 <- list(v1 = v1.vals)
+  v0 <- list()
+  
+  for (i in 1:ncol(v)){
+    if (length(unique(v[,i])) <= 20|class(v[,i]) == 'factor'){
+      tmp.vals <- sort(unique(v[,i]))
+    } else {
+      tmp.vals <- seq(min(v[, i]), max(v[, i]), length.out = num_grid)
+    }
+    
+    v0[[paste0("v", i, ".vals")]] <- tmp.vals
   }
+  v0.long <- expand.grid(v0)
 
   res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long= v0.long)
   return(res)
