@@ -2,6 +2,8 @@
 
 export(cate)
 export(cate_lvl_set)
+export(debiased_inference)
 export(get_pseudo_outcome)
 export(lp_r_learner)
+export(plot_debiased_curve)
 export(unif_ctff_series)

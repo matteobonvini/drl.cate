@@ -116,6 +116,12 @@
   return(arg)
 }
 
+#' plot_debiased_curve
+#'
+#' @param res.df ADD
+#' @param ci ADD
+#' @param unif ADD
+#' @export
 plot_debiased_curve <- function(res.df, ci=TRUE, unif=TRUE){
   p <- ggplot2::ggplot(res.df) +
     ggplot2::geom_line(aes(x=eval.pts, y=theta)) +
@@ -143,8 +149,16 @@ plot_debiased_curve <- function(res.df, ci=TRUE, unif=TRUE){
   return(p)
 }
 
-
-
+#' debiased_inference
+#' @param A ADD
+#' @param pseudo.out ADD
+#' @param muhat.mat ADD
+#' @param mhat.obs ADD
+#' @param debias boolean ADD
+#' @param tau ratio bandwidths ADD
+#' @param eval.pts ADD
+#' @param ... ADD
+#' @export
 debiased_inference <- function(A, pseudo.out, muhat.mat, mhat.obs, debias,
                                tau=1, eval.pts=NULL, ...){
   # Parse control inputs ------------------------------------------------------
