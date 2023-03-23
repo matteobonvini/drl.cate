@@ -2,5 +2,6 @@
 
 export(cate)
 export(cate_lvl_set)
+export(get.pseudo.y)
 export(lp_r_learner)
 export(unif_ctff_series)
