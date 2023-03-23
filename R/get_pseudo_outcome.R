@@ -1,4 +1,4 @@
-#' unif_ctff_series
+#' get_pseudo_outcome
 #'
 #' This function calculates the pseudo-outcomes depending on the estimand
 #' @param y outcome
@@ -15,7 +15,7 @@
 #' @param nsplits number of splints
 #' @return a list containing the pseudo outcomes
 #' @export
-get.pseudo.y <- function(y, a, x, v1, v2, mu0.x, mu1.x, pi.x, cond.dens,
+get_pseudo_outcome <- function(y, a, x, v1, v2, mu0.x, mu1.x, pi.x, cond.dens,
                          cate.w, nsplits = 1) {
   
   n <- length(y)
