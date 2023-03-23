@@ -3,4 +3,6 @@
 export(cate)
 export(cate_lvl_set)
 export(lp_r_learner)
+export(plot_debiased_curve)
 export(unif_ctff_series)
+import(ggplot2)
