@@ -122,30 +122,42 @@
 #' @param ci ADD
 #' @param unif ADD
 #' @export
-plot_debiased_curve <- function(res.df, ci=TRUE, unif=TRUE){
-  p <- ggplot2::ggplot(res.df) +
-    ggplot2::geom_line(aes(x=eval.pts, y=theta)) +
-    ggplot2::xlab("Exposure") +
+plot_debiased_curve <- function(pseudo, exposure, res.df, ci=TRUE, unif=TRUE,
+                                add.pseudo=TRUE){
+  p <- ggplot() + ggplot2::xlab("Exposure") +
     ggplot2::ylab("Covariate-adjusted outcome") +
     ggplot2::theme_minimal()
-
+  if(class(res.df$eval.pts) == "factor") {
+    if(add.pseudo) {
+      p <- p + ggplot2::geom_point(data = NULL, aes(x=as.factor(exposure), y=pseudo), col = "gray")
+    }
+    p <- p + ggplot2::geom_point(data = res.df, aes(x=eval.pts, y=theta))
+  } else {
+    if(add.pseudo) {
+      p <- p + ggplot2::geom_point(data = NULL, aes(x=exposure, y=pseudo), col = "gray")
+    }
+    p <- p + ggplot2::geom_line(data = res.df, aes(x=eval.pts, y=theta))
+  }
   if(ci){
-    p <- p + ggplot2::geom_pointrange(aes(x=eval.pts, y=theta,
+    p <- p + ggplot2::geom_pointrange(data = res.df, aes(x=eval.pts, y=theta,
                                           ymin=ci.ll.pts,
                                           ymax=ci.ul.pts,
-                                          size="Pointwise CIs")) +
+                                          size="Pointwise CIs"), col = "black") +
       ggplot2::scale_size_manual("",values=c("Pointwise CIs"=0.2))
   }
   if(unif){
-    p <- p + ggplot2::geom_line(aes(x=eval.pts,
+    p <- p + ggplot2::geom_line(data = res.df, aes(x=eval.pts,
                                     y=ci.ll.unif,
-                                    linetype="Uniform band")) +
-      ggplot2::geom_line(aes(x=eval.pts,
+                                    linetype="Uniform band"), col = "red") +
+      ggplot2::geom_line(data = res.df, aes(x=eval.pts,
                              y=ci.ul.unif,
-                             linetype="Uniform band"))+
+                             linetype="Uniform band"),
+                         col = "red")+
       ggplot2::scale_linetype_manual("",values=c("Uniform band"=2))
   }
-  p <- p + ggplot2::theme(legend.position = "bottom")
+  p <- p + ggplot2::theme(legend.position = "bottom") +
+    geom_hline(yintercept = 0, col = "blue") +
+    geom_hline(yintercept = mean(pseudo), col = "orange")
   return(p)
 }
 
@@ -171,7 +183,8 @@ debiased_inference <- function(A, pseudo.out, muhat.mat, mhat.obs, debias,
   n <- length(A)
   kern <- function(t){.kern(t, kernel=kernel.type)}
   if (is.null(eval.pts)){
-    eval.pts <- seq(quantile(A, 0.05), quantile(A, 0.95),  length.out=30)
+    # eval.pts <- seq(quantile(A, 0.05), quantile(A, 0.95),  length.out=30)
+    eval.pts <- seq(min(A), max(A), length.out = 30)
   }
 
   # Compute bandwidth ---------------------------------------------------------

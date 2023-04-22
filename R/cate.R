@@ -19,7 +19,8 @@
 #' Heterogeneous Causal Effects. \emph{arXiv preprint arXiv:2004.14497}.
 
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid = 100,
-                 nsplits = 5, foldid = NULL, ...) {
+                 nsplits = 5, foldid = NULL, partial_dependence = TRUE,
+                 additive_approx = TRUE, ...) {
 
   params <- list(...)
 
@@ -50,17 +51,26 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
   est <- est.pi <- replicate(length(learner),
                              array(NA, dim = c(nrow(v0.long), 3, nsplits)),
                              simplify = FALSE)
+  univariate_res <- univariate_debias_res <- pd_res <- pd_debias_res <-
+    additive_res <-
+    replicate(length(learner), vector("list", ncol(v)), simplify = FALSE)
+
   pseudo.y <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                         simplify = FALSE)
+  pseudo.y.pd <- theta.bar <- replicate(length(learner), matrix(NA, ncol = ncol(v), nrow = n),
+                                        simplify = FALSE)
+  theta.mat <- replicate(length(learner), array(NA, dim = c(n, n, ncol(v))),
+                         simplify = FALSE)
   ites_v <- replicate(length(learner), matrix(NA, ncol = 3, nrow = n),
                       simplify = FALSE)
   ites_x <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                       simplify = FALSE)
   names(est) <- names(est.pi) <- names( pseudo.y) <- names(ites_v) <-
-    names(ites_x) <- learner
+    names(ites_x) <- names(theta.mat) <- names(pseudo.y.pd) <-
+    names(theta.bar) <- learner
 
   stage2.reg.data <- vector("list", nsplits)
-  stage2.reg.preds <- vector("list", nsplits)
+  stage2.reg.data.pd <- replicate(ncol(v), vector("list", nsplits), simplify = FALSE)
 
   if(any(learner == "lp-r")) {
     est[["lp-r"]] <- matrix(NA, ncol = 3, nrow = nrow(v0.long))
@@ -93,6 +103,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
     mu0.x <- params[["mu0.x"]]
     drl.v <- params[["drl.v"]]
     drl.x <- params[["drl.x"]]
+    cate.w <- params[["cate.w"]]
+    cond.dens <- params[["cond.dens"]]
 
     if(is.null(mu1.x)) {
 
@@ -117,7 +129,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
       } else stop("Provide valid method for estimating the E(Y|A=0,X).")
 
     }
-    
+
     if(is.null(drl.v) & any(learner == "dr")) {
 
       if(drl.v.method == "lasso") {
@@ -133,11 +145,11 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
       } else stop("Provide valid method for second-stage regression.")
 
     }
-    
+
     if(is.null(drl.x) & any(learner == "dr")) {
       if(is.null(drl.x.method)) {
         # by default use lasso
-        drl.x <- drl.lasso 
+        drl.x <- drl.lasso
       } else if (drl.x.method == "lm"){
         drl.x <- drl.ite.lm
       } else if (drl.x.method == "lasso"){
@@ -180,6 +192,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
     test.idx <- k == s
     train.idx <- k != s
     if(all(!train.idx)) train.idx <- test.idx
+    n.te <- sum(test.idx)
+    n.tr <- sum(train.idx)
 
     x.tr <- x[train.idx, , drop = FALSE]
     a.tr <- a[train.idx]
@@ -190,15 +204,26 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
     if ((!is.matrix(v)) & (!is.data.frame(v))){
       v.te <- v[test.idx]
+      v.tr <- v[train.idx]
     } else{
-      v.te <- v[test.idx, , drop = FALSE]}
+      v.te <- v[test.idx, , drop = FALSE]
+      v.tr <- v[train.idx, , drop = FALSE]
+    }
 
     pihat <- pi.x(a = a.tr, x = x.tr, new.x = x.te)
 
     if(any(learner %in% c("dr", "t"))) {
 
-      mu1hat <- mu1.x(y = y.tr, a = a.tr, x = x.tr, new.x = x.te)
-      mu0hat <- mu0.x(y = y.tr, a = a.tr, x = x.tr, new.x = x.te)
+      mu0hat.vals <- mu0.x(y = y.tr, a = a.tr, x = x.tr,
+                           new.x = rbind(x.te, x.tr))
+      mu0hat <- mu0hat.vals[1:n.te]
+
+      mu1hat.vals <- mu1.x(y = y.tr, a = a.tr, x = x.tr,
+                           new.x = rbind(x.te, x.tr))
+      mu1hat <- mu1hat.vals[1:n.te]
+
+      # mu1hat <- mu1.x(y = y.tr, a = a.tr, x = x.tr, new.x = x.te)
+      # mu0hat <- mu0.x(y = y.tr, a = a.tr, x = x.tr, new.x = x.te)
 
     }
 
@@ -214,15 +239,17 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
+
         drl.res <-  drl.v(y = pseudo, x = v.te, new.x = rbind(v0.long, v.te))
         drl.res.pi <-  drl.v(y = mu1hat - mu0hat, x = v.te,
-                           new.x = rbind(v0.long, v.te))
+                             new.x = rbind(v0.long, v.te))
         stage2.reg.data[[k]] <- cbind(data.frame(pseudo = pseudo,
                                                  mu1hat = mu1hat,
                                                  mu0hat = mu0hat,
                                                  pihat = pihat,
                                                  y = y.te,
-                                                 a = a.te), v.te)
+                                                 a = a.te,
+                                                 fold.id = k), v.te)
         if(k == 1) {
           drl.form <- drl.res$drl.form
           reg.model <- drl.res$model
@@ -235,6 +262,64 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[(nrow(v0.long)+1):nrow(drl.vals), ]
         ites_x[[alg]][test.idx, 1] <- drl.x(y = pseudo, x = x.te, new.x = x.te)$res[,1]
+
+
+        if(partial_dependence) {
+
+          for(j in 1:ncol(v)) {
+
+            v1.j.tr <- v.tr[, j]
+            v2.not.v1.j.tr <- v.tr[, colnames(v) != colnames(v)[j], drop = FALSE]
+            v1.j.te <- v.te[, j]
+            v2.not.v1.j.te <- v.te[, colnames(v) != colnames(v)[j], drop = FALSE]
+
+
+            w.long.test <- cbind(v1j = v1.j.te,
+                                 v2.not.v1.j.te[rep(1:n.te, n.te), , drop = FALSE])
+            w.long <- cbind(v1j = v1.j.te,
+                            v2.not.v1.j.te[rep(1:n.te, n), , drop = FALSE])
+            w.tr <- cbind(v1j = v1.j.tr, v2.not.v1.j.tr)
+            w.te <-  cbind(v1j = v1.j.te, v2.not.v1.j.te)
+            print(colnames(v2.not.v1.j.te[rep(1:n.te, n.te), , drop = FALSE]))
+            cond.dens.vals <- cond.dens(v1 = v1.j.tr,
+                                        v2 = v2.not.v1.j.tr,
+                                        new.v1 = c(v1.j.te, w.long.test[, 1]),
+                                        new.v2 = rbind(v2.not.v1.j.te,
+                                                       w.long.test[, -1, drop = FALSE]))
+            marg.dens <- colMeans(matrix(cond.dens.vals[-c(1:n.te)], ncol = n.te,
+                                         nrow = n.te))
+            ghat <- marg.dens / cond.dens.vals[1:n.te]
+
+            cate.preds <- cate.w(tau = mu1hat.vals[-c(1:n.te)] - mu0hat.vals[-c(1:n.te)],
+                                 w = w.tr,
+                                 new.w = rbind(w.te, w.long.test, w.long))
+
+            tauhat.w <- cate.preds$res[1:n.te]
+            theta.mat.test <- matrix(cate.preds$res[(n.te+1):(n.te + n.te^2)],
+                                     nrow = n.te, ncol = n.te)
+
+            theta.mat[[alg]][, test.idx, j] <-
+              matrix(cate.preds$res[-c(1:(n.te + n.te^2))], nrow = n, ncol = n.te)
+            theta.bar[[alg]][test.idx, j] <- apply(theta.mat.test, 2, mean)
+            pseudo.y.pd[[alg]][test.idx, j] <- (pseudo - tauhat.w) * ghat +
+              theta.bar[[alg]][test.idx, j]
+
+            stage2.reg.data.pd[[j]][[k]] <- cbind(data.frame(pseudo.pd = pseudo.y.pd[[alg]][test.idx, j],
+                                                             pseudo.cate = pseudo,
+                                                             mu1hat = mu1hat,
+                                                             mu0hat = mu0hat,
+                                                             pihat = pihat,
+                                                             tauhat.w = tauhat.w,
+                                                             marg.dens = marg.dens,
+                                                             cond.dens = cond.dens.vals[1:n.te],
+                                                             theta.bar = theta.bar[[alg]][test.idx, j],
+                                                             y = y.te,
+                                                             a = a.te,
+                                                             fold.id = k), v.te)
+
+          }
+        }
+
 
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
@@ -251,6 +336,110 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
       } else if(alg == "lp-r") next
     }
   }
+  for(alg in learner) {
+
+    if(alg != "dr") next
+
+    if(additive_approx) {
+      additive_model <- drl.basis(y = pseudo.y[[alg]][, 1], x = v, new.x = v)
+      tt <- delete.response(terms(additive_model$model))
+    }
+
+    for(j in 1:ncol(v)){
+      vj <- v[, j]
+
+      if(length(unique(vj)) < 10 | class(vj) == "factor") {
+        univariate_debias_res[[alg]][[j]] <- univariate_res[[alg]][[j]] <-
+          list(data = data.frame(pseudo = pseudo.y[[alg]][, 1],
+                                 exposure = vj),
+               res = lm.discrete.v(y = pseudo.y[[alg]][, 1], x = as.factor(vj),
+                             new.x = unique(as.factor(vj)))
+          )
+        if(partial_dependence) {
+          pd_debias_res[[alg]][[j]] <- pd_res[[alg]][[j]] <-
+            list(data = data.frame(pseudo = pseudo.y.pd[[alg]][, j],
+                                   exposure = vj),
+                 res = lm.discrete.v(y = pseudo.y.pd[[alg]][, j], x = as.factor(vj),
+                               new.x = unique(as.factor(vj)))
+            )
+
+        }
+      }
+      else {
+        univariate_debias_res[[alg]][[j]] <-
+          list(
+            data = data.frame(pseudo = pseudo.y[[alg]][, 1],
+                              exposure = vj),
+            res = debiased_inference(A = vj, pseudo.out = pseudo.y[[alg]][, 1], tau = 1,
+                               muhat.mat = matrix(0, nrow(data)^2),
+                               mhat.obs = rep(0, nrow(data)),
+                               debias = TRUE,
+                               bandwidth.method = "LOOCV",
+                               kernel.type = "epa",
+                               bw.seq = params[["bw.stage2"]][[j]])
+          )
+        univariate_res[[alg]][[j]] <-
+          list(data = data.frame(pseudo = pseudo.y[[alg]][, 1],
+                          exposure = vj),
+               res = debiased_inference(A = vj, pseudo.out = pseudo.y[[alg]][, 1], tau = 1,
+                                  muhat.mat = matrix(0, nrow(data)^2),
+                                  mhat.obs = rep(0, nrow(data)),
+                                  debias = FALSE,
+                                  bandwidth.method = "LOOCV",
+                                  kernel.type = "epa",
+                                  bw.seq = params[["bw.stage2"]][[j]])
+          )
+
+        if(partial_dependence) {
+          pd_debias_res[[alg]][[j]] <-
+            list(
+              data = data.frame(pseudo = pseudo.y.pd[[alg]][, j],
+                                exposure = vj),
+              res = debiased_inference(A = vj, pseudo.out = pseudo.y.pd[[alg]][, j], tau = 1,
+                                 muhat.mat = theta.mat[[alg]][, , j],
+                                 mhat.obs = theta.bar[[alg]][, j],
+                                 debias = TRUE,
+                                 bandwidth.method = "LOOCV",
+                                 kernel.type = "epa",
+                                 bw.seq = params[["bw.stage2"]][[j]])
+            )
+          pd_res[[alg]][[j]] <-
+            list(
+              data = data.frame(pseudo = pseudo.y.pd[[alg]][, j],
+                                exposure = vj),
+              debiased_inference(A = vj, pseudo.out = pseudo.y.pd[[alg]][, j], tau = 1,
+                                 muhat.mat = theta.mat[[alg]][, , j],
+                                 mhat.obs = theta.bar[[alg]][, j],
+                                 debias = FALSE,
+                                 bandwidth.method = "LOOCV",
+                                 kernel.type = "epa",
+                                 bw.seq = params[["bw.stage2"]][[j]])
+            )
+        }
+      }
+      if(additive_approx){
+        new.dat.additive <- as.data.frame(matrix(0, nrow = length(v0[[j]]), ncol = ncol(v),
+                                                 dimnames = list(NULL, colnames(v))))
+        new.dat.additive[, j] <- v0[[j]]
+        preds.j.additive <- predict.lm(additive_model$model,
+                                       newdata = new.dat.additive)
+        m <- model.frame(tt, new.dat.additive)
+        design.mat <- model.matrix(tt, m)
+        beta.vcov <- sandwich::vcovHC(additive_model$model)
+        sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
+
+        ci.l <- preds.j.additive - 1.96 * sqrt(sigma2hat)
+        ci.u <- preds.j.additive + 1.96 * sqrt(sigma2hat)
+        additive_res[[alg]][[j]] <- data.frame(eval.pts = v0[[j]],
+                                               theta = preds.j.additive,
+                                               ci.ll.pts = ci.l,
+                                               ci.ul.pts = ci.u,
+                                               ci.ll.unif = NA,
+                                               ci.ul.unif = NA)
+      }
+    }
+  }
+
 
   if(any(learner == "lp-r")) {
 
@@ -273,7 +462,13 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
               pseudo.y = pseudo.y, ites_v = ites_v,
               ites_x = ites_x, v0.long = v0.long, v0 = v0, v = v,
               drl.form = drl.form, reg_model = reg.model,
-              stage2.reg.data = stage2.reg.data)
+              stage2.reg.data = stage2.reg.data,
+              stage2.reg.data.pd = stage2.reg.data.pd,
+              univariate_res = univariate_res,
+              univariate_debias_res = univariate_debias_res,
+              pd_res = pd_res,
+              pd_debias_res = pd_debias_res,
+              additive_res = additive_res)
   return(ret)
 }
 

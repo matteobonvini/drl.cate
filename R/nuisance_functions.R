@@ -185,3 +185,70 @@ drl.rf <- function(y, x, new.x) {
   return((list(res = res, model = fit)))
 }
 
+drl.basis <- function(y, x, new.x, kmax = 10) {
+  x <- as.data.frame(x)
+  n.vals <- apply(x, 2, function(u) length(unique(u)))
+  x.cont <- x[, which(n.vals > kmax), drop = FALSE]
+  x.disc <- x[, which(n.vals <= kmax), drop = FALSE]
+
+   n.basis <- expand.grid(rep(list(1:kmax), ncol(x.cont)))
+   risk <- models <- rep(NA, nrow(n.basis))
+   for(i in 1:nrow(n.basis)){
+     if(ncol(x.cont) > 0) {
+     lm.form <- paste0("y ~ ", paste0("poly(", colnames(x.cont)[1], ",", n.basis[i, 1], ")"))
+     if(ncol(x.cont) > 1) {
+       for(k in 2:ncol(x.cont)) {
+         lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ",", n.basis[i, k], ")"))
+       }
+     }
+     }
+     if(ncol(x.disc) > 0) {
+       for(k in 1:ncol(x.disc)) {
+         lm.form <- c(lm.form, paste0(colnames(x.disc)[k]))
+       }
+     }
+
+     lm.form <- paste0(lm.form, collapse = "+")
+     fit <- lm(as.formula(lm.form), data = cbind(data.frame(y = y), x))
+     x.mat <- model.matrix(as.formula(lm.form), data = x)
+     hat.mat <- x.mat %*% solve(t(x.mat) %*% x.mat) %*% t(x.mat)
+     risk[i] <- mean((resid(fit) / (1 - diag(hat.mat)))^2)
+     models[i] <- lm.form
+   }
+
+  best.model <- lm(as.formula(models[which.min(risk)]), data = cbind(data.frame(y = y), x))
+
+  out <- predict(best.model, newdata = as.data.frame(new.x))
+  res <- cbind(out, NA, NA)
+  return((list(drl.form = models[which.min(risk)], res = res, model =  best.model)))
+
+}
+
+
+lm.discrete.v <- function(y, x, new.x) {
+  # univariate
+  fit <- lm(y ~ x, data = data.frame(y = y, x = x))
+  new.dat <- data.frame(x = new.x)
+  preds <- predict.lm(fit, newdata = new.dat)
+  tt <- delete.response(terms(fit))
+  m <- model.frame(tt, new.dat)
+  design.mat <- model.matrix(tt, m)
+  beta.vcov <- sandwich::vcovHC(fit)
+  sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
+
+  ci.l <- preds - 1.96 * sqrt(sigma2hat)
+  ci.u <- preds + 1.96 * sqrt(sigma2hat)
+
+  out <- data.frame(
+    eval.pts=new.x,
+    theta=preds,
+    ci.ll.pts=ci.l,
+    ci.ul.pts=ci.u,
+    ci.ul.unif= NA,
+    ci.ll.unif= NA
+  )
+
+  return(out)
+
+}
+
