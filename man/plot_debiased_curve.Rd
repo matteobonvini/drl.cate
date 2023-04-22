@@ -4,7 +4,14 @@
 \alias{plot_debiased_curve}
 \title{plot_debiased_curve}
 \usage{
-plot_debiased_curve(res.df, ci = TRUE, unif = TRUE)
+plot_debiased_curve(
+  pseudo,
+  exposure,
+  res.df,
+  ci = TRUE,
+  unif = TRUE,
+  add.pseudo = TRUE
+)
 }
 \arguments{
 \item{res.df}{ADD}

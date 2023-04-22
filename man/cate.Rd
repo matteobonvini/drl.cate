@@ -14,6 +14,8 @@ cate(
   num_grid = 100,
   nsplits = 5,
   foldid = NULL,
+  partial_dependence = TRUE,
+  additive_approx = TRUE,
   ...
 )
 }

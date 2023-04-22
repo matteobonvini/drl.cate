@@ -124,7 +124,7 @@
 #' @export
 plot_debiased_curve <- function(pseudo, exposure, res.df, ci=TRUE, unif=TRUE,
                                 add.pseudo=TRUE){
-  p <- ggplot() + ggplot2::xlab("Exposure") +
+  p <-  ggplot2::ggplot() + ggplot2::xlab("Exposure") +
     ggplot2::ylab("Covariate-adjusted outcome") +
     ggplot2::theme_minimal()
   if(class(res.df$eval.pts) == "factor") {
@@ -156,8 +156,8 @@ plot_debiased_curve <- function(pseudo, exposure, res.df, ci=TRUE, unif=TRUE,
       ggplot2::scale_linetype_manual("",values=c("Uniform band"=2))
   }
   p <- p + ggplot2::theme(legend.position = "bottom") +
-    geom_hline(yintercept = 0, col = "blue") +
-    geom_hline(yintercept = mean(pseudo), col = "orange")
+    ggplot2::geom_hline(yintercept = 0, col = "blue") +
+    ggplot2::geom_hline(yintercept = mean(pseudo), col = "orange")
   return(p)
 }
 
