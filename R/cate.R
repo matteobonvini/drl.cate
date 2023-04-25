@@ -280,7 +280,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
                             v2.not.v1.j.te[rep(1:n.te, n), , drop = FALSE])
             w.tr <- cbind(v1j = v1.j.tr, v2.not.v1.j.tr)
             w.te <-  cbind(v1j = v1.j.te, v2.not.v1.j.te)
-            print(colnames(v2.not.v1.j.te[rep(1:n.te, n.te), , drop = FALSE]))
+
             cond.dens.vals <- cond.dens(v1 = v1.j.tr,
                                         v2 = v2.not.v1.j.tr,
                                         new.v1 = c(v1.j.te, w.long.test[, 1]),
@@ -407,7 +407,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
             list(
               data = data.frame(pseudo = pseudo.y.pd[[alg]][, j],
                                 exposure = vj),
-              debiased_inference(A = vj, pseudo.out = pseudo.y.pd[[alg]][, j], tau = 1,
+              res = debiased_inference(A = vj, pseudo.out = pseudo.y.pd[[alg]][, j], tau = 1,
                                  muhat.mat = theta.mat[[alg]][, , j],
                                  mhat.obs = theta.bar[[alg]][, j],
                                  debias = FALSE,

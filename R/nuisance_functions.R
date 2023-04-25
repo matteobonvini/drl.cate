@@ -252,3 +252,22 @@ lm.discrete.v <- function(y, x, new.x) {
 
 }
 
+cond.dens <- function(v1, v2, new.v1, new.v2) {
+
+  mean.fit <- lm(y ~ ., data = cbind(data.frame(y = v1), v2))
+  # mean.fit <- drl.basis(y = v1, x = v2, new.x = x, kmax = 10)
+
+  preds.means <- predict(mean.fit, newdata = as.data.frame(v2))
+  var.fit <- lm(y ~ ., data = cbind(data.frame(y = (v1 - preds.means)^2), v2))
+  preds.vars <- predict(var.fit, newdata = as.data.frame(v2))
+  v1.std.tr <- (v1 - preds.means) / sqrt(preds.vars)
+  v1.std.te <- (new.v1 - predict(mean.fit, newdata = as.data.frame(new.v2))) /
+    sqrt(abs(predict(var.fit, newdata = as.data.frame(new.v2))))
+
+  out <- approx(density(v1.std.tr)$x, density(v1.std.tr)$y, xout = v1.std.te)$y /
+    sqrt(abs(predict(var.fit, newdata = as.data.frame(new.v2))))
+
+  return(out)
+
+}
+
