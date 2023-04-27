@@ -19,7 +19,8 @@
 #' Heterogeneous Causal Effects. \emph{arXiv preprint arXiv:2004.14497}.
 
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid = 100,
-                 nsplits = 5, foldid = NULL, partial_dependence = TRUE,
+                 nsplits = 5, foldid = NULL, univariate_reg = TRUE,
+                 partial_dependence = TRUE,
                  additive_approx = TRUE, ...) {
 
   params <- list(...)
@@ -349,12 +350,14 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
       vj <- v[, j]
 
       if(length(unique(vj)) < 10 | class(vj) == "factor") {
-        univariate_debias_res[[alg]][[j]] <- univariate_res[[alg]][[j]] <-
-          list(data = data.frame(pseudo = pseudo.y[[alg]][, 1],
-                                 exposure = vj),
-               res = lm.discrete.v(y = pseudo.y[[alg]][, 1], x = as.factor(vj),
-                             new.x = unique(as.factor(vj)))
-          )
+        if(univariate_reg) {
+          univariate_debias_res[[alg]][[j]] <- univariate_res[[alg]][[j]] <-
+            list(data = data.frame(pseudo = pseudo.y[[alg]][, 1],
+                                   exposure = vj),
+                 res = lm.discrete.v(y = pseudo.y[[alg]][, 1], x = as.factor(vj),
+                                     new.x = unique(as.factor(vj)))
+            )
+        }
         if(partial_dependence) {
           pd_debias_res[[alg]][[j]] <- pd_res[[alg]][[j]] <-
             list(data = data.frame(pseudo = pseudo.y.pd[[alg]][, j],
@@ -366,29 +369,31 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names, num_grid
         }
       }
       else {
-        univariate_debias_res[[alg]][[j]] <-
-          list(
-            data = data.frame(pseudo = pseudo.y[[alg]][, 1],
-                              exposure = vj),
-            res = debiased_inference(A = vj, pseudo.out = pseudo.y[[alg]][, 1], tau = 1,
-                               muhat.mat = matrix(0, nrow(data)^2),
-                               mhat.obs = rep(0, nrow(data)),
-                               debias = TRUE,
-                               bandwidth.method = "LOOCV",
-                               kernel.type = "epa",
-                               bw.seq = params[["bw.stage2"]][[j]])
-          )
-        univariate_res[[alg]][[j]] <-
-          list(data = data.frame(pseudo = pseudo.y[[alg]][, 1],
-                          exposure = vj),
-               res = debiased_inference(A = vj, pseudo.out = pseudo.y[[alg]][, 1], tau = 1,
-                                  muhat.mat = matrix(0, nrow(data)^2),
-                                  mhat.obs = rep(0, nrow(data)),
-                                  debias = FALSE,
-                                  bandwidth.method = "LOOCV",
-                                  kernel.type = "epa",
-                                  bw.seq = params[["bw.stage2"]][[j]])
-          )
+        if(univariate_reg) {
+          univariate_debias_res[[alg]][[j]] <-
+            list(
+              data = data.frame(pseudo = pseudo.y[[alg]][, 1],
+                                exposure = vj),
+              res = debiased_inference(A = vj, pseudo.out = pseudo.y[[alg]][, 1], tau = 1,
+                                       muhat.mat = matrix(0, nrow(data)^2),
+                                       mhat.obs = rep(0, nrow(data)),
+                                       debias = TRUE,
+                                       bandwidth.method = "LOOCV",
+                                       kernel.type = "epa",
+                                       bw.seq = params[["bw.stage2"]][[j]])
+            )
+          univariate_res[[alg]][[j]] <-
+            list(data = data.frame(pseudo = pseudo.y[[alg]][, 1],
+                                   exposure = vj),
+                 res = debiased_inference(A = vj, pseudo.out = pseudo.y[[alg]][, 1], tau = 1,
+                                          muhat.mat = matrix(0, nrow(data)^2),
+                                          mhat.obs = rep(0, nrow(data)),
+                                          debias = FALSE,
+                                          bandwidth.method = "LOOCV",
+                                          kernel.type = "epa",
+                                          bw.seq = params[["bw.stage2"]][[j]])
+            )
+        }
 
         if(partial_dependence) {
           pd_debias_res[[alg]][[j]] <-
