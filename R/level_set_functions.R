@@ -66,7 +66,7 @@ cate_lvl_set <- function(theta, cate.obj, set_type = "upper",
   cate.vals <- matrix(cate.vals, nrow = length(v0$v1),
                       ncol =  length(v0$v2), byrow = FALSE)
 
-  res <- contourLines(x = v0$v1, y = v0$v2, z = cate.vals, levels = theta)
+  res <- contourLines(x = v0$v1, y = as.numeric(v0$v2), z = cate.vals, levels = theta)
 
   is.there.lvl.set <- min(cate.vals) <= theta & theta <= max(cate.vals)
 

@@ -1,4 +1,4 @@
-get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
+get_input <- function(data, x_names, y_name, a_name, v_names, v0.long, num_grid = 100){
 
   # a function that return sanitized input according to covariate names
 
@@ -15,23 +15,28 @@ get_input <- function(data, x_names, y_name, a_name, v_names, num_grid = 100){
   x <- data[,x_names, drop = FALSE]
   v <- x[,v_names, drop = FALSE]
 
-  # for now v0.long only works for 2 dimensional v
   colnames(v) <- stringr::str_c("v", 1:ncol(v))
+
   v0 <- list()
 
   for (i in 1:ncol(v)){
-    if (length(unique(v[,i])) <= 20|class(v[,i]) == 'factor'){
-      tmp.vals <- sort(unique(v[,i]))
+
+    if(!is.null(v0.long)) {
+
+      v0[[paste0("v",i)]] <- unique(v0.long[,i])
+
     } else {
-      tmp.vals <- seq(min(v[, i]), max(v[, i]), length.out = num_grid)
+      if (length(unique(v[,i])) <= 20 | class(v[,i]) == 'factor'){
+        tmp.vals <- sort(unique(v[, i]))
+      } else {
+        tmp.vals <- seq(min(v[, i]), max(v[, i]), length.out = num_grid)
+      }
+      v0[[paste0("v", i)]] <- tmp.vals
+      v0.long <- expand.grid(v0)
     }
-
-    # v0[[paste0("v", i, ".vals")]] <- tmp.vals
-    v0[[paste0("v", i)]] <- tmp.vals
   }
-  v0.long <- expand.grid(v0)
 
-  res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long= v0.long)
+  res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long = v0.long)
   return(res)
 }
 
@@ -185,38 +190,47 @@ drl.rf <- function(y, x, new.x) {
   return((list(res = res, model = fit)))
 }
 
-drl.basis <- function(y, x, new.x, kmax = 10) {
+drl.basis <- function(y, x, new.x, kmin = 3, kmax = 10) {
+  require(splines)
   x <- as.data.frame(x)
   n.vals <- apply(x, 2, function(u) length(unique(u)))
-  x.cont <- x[, which(n.vals > kmax), drop = FALSE]
-  x.disc <- x[, which(n.vals <= kmax), drop = FALSE]
+  var.type <- unlist(lapply(x, function(u) paste0(class(u), collapse = " ")))
+  factor.boolean <- n.vals <= 10 | var.type == "factor" | var.type == "ordered factor"
+  x.cont <- x[, which(!factor.boolean), drop = FALSE]
+  x.disc <- x[, which(factor.boolean), drop = FALSE]
 
-   n.basis <- expand.grid(rep(list(1:kmax), ncol(x.cont)))
-   risk <- models <- rep(NA, nrow(n.basis))
-   for(i in 1:nrow(n.basis)){
-     if(ncol(x.cont) > 0) {
-     lm.form <- paste0("y ~ ", paste0("poly(", colnames(x.cont)[1], ",", n.basis[i, 1], ")"))
-     if(ncol(x.cont) > 1) {
-       for(k in 2:ncol(x.cont)) {
-         lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ",", n.basis[i, k], ")"))
-       }
-     }
-     }
-     if(ncol(x.disc) > 0) {
-       for(k in 1:ncol(x.disc)) {
-         lm.form <- c(lm.form, paste0(colnames(x.disc)[k]))
-       }
-     }
+  n.basis <- expand.grid(rep(list(kmin:kmax), ncol(x.cont)))
+  risk <- models <- rep(NA, nrow(n.basis))
+  for(i in 1:nrow(n.basis)){
+    if(ncol(x.cont) > 0) {
+      lm.form <- paste0("~ ", paste0("bs(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
+      if(ncol(x.cont) > 1) {
+        for(k in 2:ncol(x.cont)) {
+          lm.form <- c(lm.form, paste0("bs(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
+        }
+      }
+    }
+    if(ncol(x.disc) > 0) {
+      for(k in 1:ncol(x.disc)) {
+        if(ncol(x.cont) == 0 & k == 1) {
+          lm.form <- paste0("~ as.factor(", colnames(x.disc)[k], ")")
+        } else {
+          lm.form <- c(lm.form, paste0("as.factor(", colnames(x.disc)[k], ")"))
+        }
+      }
+    }
 
-     lm.form <- paste0(lm.form, collapse = "+")
-     fit <- lm(as.formula(lm.form), data = cbind(data.frame(y = y), x))
-     x.mat <- model.matrix(as.formula(lm.form), data = x)
-     hat.mat <- x.mat %*% solve(t(x.mat) %*% x.mat) %*% t(x.mat)
-     risk[i] <- mean((resid(fit) / (1 - diag(hat.mat)))^2)
-     models[i] <- lm.form
-   }
+    lm.form <- paste0(lm.form, collapse = "*")
+    fit <- lm(as.formula(paste0("y", lm.form)), data = cbind(data.frame(y = y), x))
+    # x.mat <- model.matrix(as.formula(lm.form), data = x)
+    # hat.mat <- x.mat %*% solve(crossprod(x.mat, x.mat)) %*% t(x.mat)
+    diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
+    risk[i] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
+    models[i] <- lm.form
+  }
 
-  best.model <- lm(as.formula(models[which.min(risk)]), data = cbind(data.frame(y = y), x))
+  best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
+                   data = cbind(data.frame(y = y), x))
 
   out <- predict(best.model, newdata = as.data.frame(new.x))
   res <- cbind(out, NA, NA)
@@ -252,22 +266,170 @@ lm.discrete.v <- function(y, x, new.x) {
 
 }
 
-cond.dens <- function(v1, v2, new.v1, new.v2) {
+.parse.cate <- function(learner, ...) {
 
-  mean.fit <- lm(y ~ ., data = cbind(data.frame(y = v1), v2))
-  # mean.fit <- drl.basis(y = v1, x = v2, new.x = x, kmax = 10)
+  params <- list(...)
+  arg <- list()
 
-  preds.means <- predict(mean.fit, newdata = as.data.frame(v2))
-  var.fit <- lm(y ~ ., data = cbind(data.frame(y = (v1 - preds.means)^2), v2))
-  preds.vars <- predict(var.fit, newdata = as.data.frame(v2))
-  v1.std.tr <- (v1 - preds.means) / sqrt(preds.vars)
-  v1.std.te <- (new.v1 - predict(mean.fit, newdata = as.data.frame(new.v2))) /
-    sqrt(abs(predict(var.fit, newdata = as.data.frame(new.v2))))
+  pi.x <- params[["pi.x"]]
+  pi.x.method <- params[["pi.x.method"]]
 
-  out <- approx(density(v1.std.tr)$x, density(v1.std.tr)$y, xout = v1.std.te)$y /
-    sqrt(abs(predict(var.fit, newdata = as.data.frame(new.v2))))
+  if(is.null(pi.x) & !is.null(pi.x.method)) {
+    if(pi.x.method == "lasso") pi.x <- pi.x.lasso
+    else if(pi.x.method == "glm") pi.x <- pi.x.glm
+    else if(pi.x.method == "SL") pi.x <- pi.x.SL(params[["sl.lib.pi"]])
+    else stop("Provide valid method for estimating the propensity score.")
+  }
 
-  return(out)
+  arg$pi.x <- pi.x
+
+  if(any(learner %in% c("dr", "t"))) {
+
+    mu1.x <- params[["mu1.x"]]
+    mu0.x <- params[["mu0.x"]]
+    drl.v <- params[["drl.v"]]
+    drl.x <- params[["drl.x"]]
+    cate.w <- params[["cate.w"]]
+    cond.dens <- params[["cond.dens"]]
+
+    if(is.null(mu1.x)) {
+      mu1.x.method <- params[["mu1.x.method"]]
+      if(mu1.x.method == "lasso") {
+        mu1.x <- mu1.x.lasso
+      } else if(mu1.x.method == "lm"){
+        mu1.x <- mu1.x.lm
+      } else if(mu1.x.method == "SL") {
+        sl.lib <- params[["SL.lib"]]
+        mu1.x <- mu1.x.SL(sl.lib)
+      } else stop("Provide valid method for estimating the E(Y|A=1,X).")
+
+    }
+
+    if(is.null(mu0.x)) {
+      mu0.x.method <- params[["mu1.x.method"]]
+      if(mu0.x.method == "lasso") {
+        mu0.x <- mu0.x.lasso
+      } else if(mu0.x.method == "lm"){
+        mu0.x <- mu0.x.lm
+      } else if(mu0.x.method == "SL") {
+        sl.lib <- params[["SL.lib"]]
+        mu0.x <- mu0.x.SL
+      } else stop("Provide valid method for estimating the E(Y|A=0,X).")
+
+    }
+
+    if(is.null(drl.v) & any(learner == "dr")) {
+      drl.v.method <- params[["drl.v.method"]]
+      if(drl.v.method == "lasso") {
+        drl.v <- drl.lasso
+      } else if(drl.v.method == "lm"){
+        drl.v <- drl.lm
+      } else if(drl.v.method == "glm"){
+        drl.v <- drl.glm
+      } else if(drl.v.method == "gam") {
+        drl.v <- drl.gam
+      } else if(drl.v.method == "rf") {
+        drl.v <- drl.rf
+      } else stop("Provide valid method for second-stage regression.")
+    }
+
+    if(is.null(drl.x) & any(learner == "dr")) {
+      drl.x.method <- params[["drl.x.method"]]
+      if(is.null(drl.x.method)) {
+        # by default use lasso
+        drl.x <- drl.lasso
+      } else if (drl.x.method == "lm"){
+        drl.x <- drl.ite.lm
+      } else if (drl.x.method == "lasso"){
+        drl.x <- drl.lasso
+      } else stop("Provide valid method for second-stage regression.")
+    }
+
+    arg$mu1.x <- mu1.x
+    arg$mu0.x <- mu0.x
+    arg$drl.v <- drl.v
+    arg$drl.x <- drl.x
+    arg$cate.w <- cate.w
+    arg$cond.dens <- cond.dens
+
+  }
+
+  if(any(learner %in% c("u", "r", "lp-r"))) {
+
+    mu.x.method <- params[["mu.x.method"]]
+    ul.method <- params[["ul.method"]]
+    ul <- params[["ul"]]
+
+    if(is.null(mu.x)) {
+      if(mu.x.method == "lasso") {
+        mu.x <- mu.x.lasso
+      } else if(mu.x.method == "SL") {
+        mu.x <- mu.x.SL
+      } else stop("Provide valid method for estimating the E(Y|X).")
+    }
+
+    if(is.null(ul) & any(learner == "u")) {
+      if(ul.method == "lasso") {
+        ul <- ul.lasso
+      } else if(ul.method == "SL") {
+        ul <- ul.SL
+      } else stop("Provide valid method for second-stage regression.")
+    }
+
+    arg$mu.x <- mu.x
+    arg$ul <- ul
+
+  }
+
+  return(arg)
+}
+
+
+drl.basis.additive <- function(y, x, new.x, kmin = 3, kmax = 10) {
+  require(splines)
+  x <- as.data.frame(x)
+  n.vals <- apply(x, 2, function(u) length(unique(u)))
+  var.type <- unlist(lapply(x, function(u) paste0(class(u), collapse = " ")))
+  factor.boolean <- (n.vals <= 10) | (var.type %in% c("factor", "ordered factor"))
+  x.cont <- x[, which(!factor.boolean), drop = FALSE]
+  x.disc <- x[, which(factor.boolean), drop = FALSE]
+
+  n.basis <- expand.grid(rep(list(kmin:kmax), ncol(x.cont)))
+  risk <- models <- rep(NA, nrow(n.basis))
+  for(i in 1:nrow(n.basis)){
+    if(ncol(x.cont) > 0) {
+      lm.form <- paste0("~ ", paste0("bs(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
+      if(ncol(x.cont) > 1) {
+        for(k in 2:ncol(x.cont)) {
+          lm.form <- c(lm.form, paste0("bs(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
+        }
+      }
+    }
+    if(ncol(x.disc) > 0) {
+      for(k in 1:ncol(x.disc)) {
+        if(ncol(x.cont) == 0 & k == 1) {
+          lm.form <- paste0("~ ", colnames(x.disc)[k])
+        } else {
+          lm.form <- c(lm.form, colnames(x.disc)[k])
+        }
+      }
+    }
+
+    lm.form <- paste0(lm.form, collapse = " + ")
+    fit <- lm(as.formula(paste0("y", lm.form)), data = cbind(data.frame(y = y), x))
+    # x.mat <- model.matrix(as.formula(lm.form), data = x)
+    # hat.mat <- x.mat %*% solve(crossprod(x.mat, x.mat)) %*% t(x.mat)
+    diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
+    risk[i] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
+    models[i] <- lm.form
+  }
+
+  best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
+                   data = cbind(data.frame(y = y), x))
+
+  out <- predict(best.model, newdata = as.data.frame(new.x))
+  res <- cbind(out, NA, NA)
+  return((list(drl.form = models[which.min(risk)], res = res, model =  best.model)))
 
 }
 
