@@ -7,11 +7,10 @@
 debiased_inference(
   A,
   pseudo.out,
-  muhat.mat,
-  mhat.obs,
-  debias,
   tau = 1,
   eval.pts = NULL,
+  muhat.vals = NULL,
+  mhat.obs = NULL,
   ...
 )
 }
@@ -20,17 +19,17 @@ debiased_inference(
 
 \item{pseudo.out}{ADD}
 
-\item{muhat.mat}{ADD}
-
-\item{mhat.obs}{ADD}
-
-\item{debias}{boolean ADD}
-
 \item{tau}{ratio bandwidths ADD}
 
 \item{eval.pts}{ADD}
 
+\item{mhat.obs}{ADD}
+
 \item{...}{ADD}
+
+\item{muhat.mat}{ADD}
+
+\item{debias}{boolean ADD}
 }
 \description{
 debiased_inference

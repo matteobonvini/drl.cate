@@ -14,9 +14,11 @@ cate(
   num_grid = 100,
   nsplits = 5,
   foldid = NULL,
-  univariate_reg = TRUE,
-  partial_dependence = TRUE,
-  additive_approx = TRUE,
+  v0.long = NULL,
+  univariate_reg = FALSE,
+  partial_dependence = FALSE,
+  additive_approx = FALSE,
+  bw.stage2 = NULL,
   ...
 )
 }
