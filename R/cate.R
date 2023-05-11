@@ -139,15 +139,16 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
           drl.form <- drl.res$drl.form
           reg.model <- drl.res$model
         }
-        drl.vals <-  drl.res$res
-        drl.vals.pi <-  drl.res.pi$res
+        drl.vals <-  as.matrix(drl.res$res)
+        drl.vals.pi <-  as.matrix(drl.res.pi$res)
+        drl.vals.x <- as.matrix(option$drl.x(y = pseudo, x = x.te,
+                                   new.x = x.te)$res)
 
         est[[alg]][, , k] <- drl.vals[1:n.eval.pts, ]
         est.pi[[alg]][, , k] <- drl.vals.pi[1:n.eval.pts, ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
         ites_v[[alg]][test.idx, ] <- drl.vals[-c(1:n.eval.pts), ]
-        ites_x[[alg]][test.idx, 1] <- option$drl.x(y = pseudo, x = x.te,
-                                                   new.x = x.te)$res[,1]
+        ites_x[[alg]][test.idx, 1] <- drl.vals.x[,1]
 
 
         if(partial_dependence) {
@@ -197,15 +198,23 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
               marg.dens.vals <- tmp.cond.dens.fn(v1.j.seq)
               cate.w.avg.vals <- tmp.cate.w.fit.fn(v1.j.seq)
-              marg.dens <- approx(x = v1.j.seq, y = marg.dens.vals,
-                                  xout = v1.j.te, rule = 2)$y
-              theta.bar.vals <- approx(x = v1.j.seq, y = cate.w.avg.vals,
-                                       xout = v1.j.te, rule = 2)$y
-
+              if(is.factor(v1.j.te)) {
+                marg.dens <- theta.bar.vals <- rep(NA, length(v1.j.te))
+                for(u in levels(v1.j.te)) {
+                  marg.dens[v1.j.te == u] <-
+                    marg.dens.vals[names(marg.dens.vals) == u]
+                  theta.bar.vals[v1.j.te == u] <-
+                    cate.w.avg.vals[names(marg.dens.vals) == u]
+                }
+              } else {
+                marg.dens <- approx(x = as.numeric(v1.j.seq), y = marg.dens.vals,
+                                    xout = v1.j.te)$y
+                theta.bar.vals <- approx(x = v1.j.seq, y = cate.w.avg.vals,
+                                         xout = v1.j.te, rule = 2)$y
+              }
             }
             else {
-
-              w.long.test <- cbind(v1j = v1.j.te,
+              w.long.test <- cbind(v1j = rep(v1.j.te, each = n.te),
                                    v2.not.v1.j.te[rep(1:n.te, n.te), ,
                                                   drop = FALSE])
               cond.dens.preds <-
@@ -308,7 +317,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                          pseudo.out = pseudo.y[[alg]][, 1],
                                          tau = 1,
                                          bandwidth.method = "LOOCV",
-                                         kernel.type = "epa",
+                                         kernel.type = "uni",
                                          bw.seq = bw.stage2[[j]])
               )
           }
@@ -343,7 +352,14 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                                                    colnames(v))))
           for(l in 1:ncol(v)) {
             if(l == j) new.dat.additive[, l] <- v0[[j]]
-            else new.dat.additive[, l] <- min(v[, l])
+            else {
+              if(is.factor(v[, l])) {
+                new.dat.additive[, l] <- factor(levels(v[, l])[1],
+                                                levels = levels(v[, l]))
+              } else {
+                new.dat.additive[, l] <- min(v[, l])
+              }
+            }
           }
 
           preds.j.additive <- predict.lm(additive_model$model,
@@ -392,7 +408,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
               stage2.reg.data.pd = stage2.reg.data.pd,
               univariate_res = univariate_res,
               pd_res = pd_res,
-              additive_res = additive_res)
+              additive_res = additive_res,
+              foldid = s)
   return(ret)
 }
 

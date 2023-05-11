@@ -32,9 +32,10 @@ get_input <- function(data, x_names, y_name, a_name, v_names, v0.long, num_grid 
         tmp.vals <- seq(min(v[, i]), max(v[, i]), length.out = num_grid)
       }
       v0[[paste0("v", i)]] <- tmp.vals
-      v0.long <- expand.grid(v0)
     }
   }
+
+  v0.long <- expand.grid(v0)
 
   res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long = v0.long)
   return(res)
