@@ -142,7 +142,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
         drl.vals <-  as.matrix(drl.res$res)
         drl.vals.pi <-  as.matrix(drl.res.pi$res)
         drl.vals.x <- as.matrix(option$drl.x(y = pseudo, x = x.te,
-                                   new.x = x.te)$res)
+                                             new.x = x.te)$res)
 
         est[[alg]][, , k] <- drl.vals[1:n.eval.pts, ]
         est.pi[[alg]][, , k] <- drl.vals.pi[1:n.eval.pts, ]
@@ -164,10 +164,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             w.te <-  cbind(v1j = v1.j.te, v2.not.v1.j.te)
 
             cond.dens.fit <- option$cond.dens(v1 = v1.j.tr, v2 = v2.not.v1.j.tr)
-            cond.dens.vals.te <- cond.dens.fit$fit(v1 = v1.j.tr,
-                                                   v2 = v2.not.v1.j.tr,
-                                                   new.v1 = v1.j.te,
-                                                   new.v2 = v2.not.v1.j.te)
+            cond.dens.vals.te <- cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
+                                                                 v2 = v2.not.v1.j.tr,
+                                                                 new.v1 = v1.j.te,
+                                                                 new.v2 = v2.not.v1.j.te)
 
             cate.tr <- mu1hat.vals[-c(1:n.te)] - mu0hat.vals[-c(1:n.te)]
 
@@ -185,10 +185,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
               }
 
               tmp.cond.dens.fn <- Vectorize(function(u) {
-                mean(cond.dens.fit$fit(v1 = v1.j.tr,
-                                       v2 = v2.not.v1.j.tr,
-                                       new.v1 = u,
-                                       new.v2 = v2.not.v1.j.te))
+                mean(cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
+                                                     v2 = v2.not.v1.j.tr,
+                                                     new.v1 = u,
+                                                     new.v2 = v2.not.v1.j.te))
               }, vectorize.args = "u")
 
               tmp.cate.w.fit.fn <- Vectorize(function(u) {
@@ -218,10 +218,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                    v2.not.v1.j.te[rep(1:n.te, n.te), ,
                                                   drop = FALSE])
               cond.dens.preds <-
-                cond.dens.fit$fit(v1 = v1.j.tr,
-                                  v2 = v2.not.v1.j.tr,
-                                  new.v1 = w.long.test[, 1],
-                                  new.v2 = w.long.test[, -1, drop = FALSE])
+                cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
+                                                v2 = v2.not.v1.j.tr,
+                                                new.v1 = w.long.test[, 1],
+                                                new.v2 = w.long.test[, -1, drop = FALSE])
 
               marg.dens <- colMeans(matrix(cond.dens.preds, ncol = n.te,
                                            nrow = n.te))

@@ -29,7 +29,8 @@ get_input <- function(data, x_names, y_name, a_name, v_names, v0.long, num_grid 
       if (length(unique(v[,i])) <= 20 | class(v[,i]) == 'factor'){
         tmp.vals <- sort(unique(v[, i]))
       } else {
-        tmp.vals <- seq(min(v[, i]), max(v[, i]), length.out = num_grid)
+        tmp.vals <- seq(quantile(v[, i], 0.05),
+                        quantile(v[, i], 0.95), length.out = num_grid)
       }
       v0[[paste0("v", i)]] <- tmp.vals
     }
