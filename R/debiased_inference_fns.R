@@ -343,7 +343,6 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   }, good.eval.pts.h.opt, h.opt, b.opt, SIMPLIFY = FALSE)
   rif.se <- matrix(NA, nrow = 2, ncol = length(eval.pts),
                    dimnames = list(c("est", "debiased_est"), NULL))
-
   rif.se[, good.pts.h.opt] <- sapply(rinf.fns, function(u) apply(u, 2, sd)/sqrt(n))
   alpha <- control$alpha.pts
 
@@ -433,6 +432,7 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     if (h>b) ind <- ind.h
     eY  <- y[ind]; eX  <- x[ind]
     K.h <- k.h[ind]; K.b <- k.b[ind]
+    print(sum(ind))
     W.b <- matrix(NA, sum(ind), 4) # (1, u, u^2, u^3)
     for (j in 1:4)  W.b[,j] <- ((eX-eval.pt[i])/b0)^(j-1)
     W.h  <- matrix(NA, sum(ind), 2) # (1, u)
