@@ -496,13 +496,11 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     ind.h <- k.h>0;  ind.b <- k.b>0; ind <- ind.b
     if (h>b) ind <- ind.h
     eN <- sum(ind); eY <- y[ind]; eX <- x[ind]
-    print(unique(eX))
     K.h <- k.h[ind]; K.b <- k.b[ind]
     W.b <- matrix(NA, eN, 4)
     for (j in 1:4)  W.b[, j] <- ((eX-eval.pt[i])/b0)^(j-1)
     W.h <- matrix(NA, eN, 2)
     for (j in 1:2)  W.h[,j] <- ((eX-eval.pt[i])/h0)^(j-1)
-    print(unique(W.h))
     invD.b  <- .qrXXinv((sqrt(K.b)*W.b))
     invD.h  <- .qrXXinv((sqrt(K.h)*W.h))
     beta.ll  <- invD.h%*%crossprod(W.h*K.h, eY) #R.p^T W.h Y
