@@ -36,7 +36,9 @@
 .compute.rinfl.func <- function(Y, A, a, h, b, kern, muhat.vals = NULL,
                                 mhat.vals = NULL){
 
-  n <- length(A); bw.min <- sort(abs(A - a))[21]
+  n <- length(A);
+  # bw.min <- sort(abs(A - a))[21]
+  bw.min <- 0
   int1.h <- int2.h <- int1.b <- int2.b <- int3.b <- int4.b <-
     rep(0, n)
   h <- max(h, bw.min); b <- max(b, bw.min)
@@ -103,8 +105,11 @@
   }
   gamma.h <- coef(lm(Y ~ a.std.h, weights = kern.std.h))
   res.h <- Y - (gamma.h[1] + gamma.h[2] * a.std.h)
+  # inf.fn <- t(Dh.inv %*% rbind(Y * kern.std.h + int1.h,
+  #                              g2.h * Y * kern.std.h + int2.h))
   inf.fn <- t(Dh.inv %*% rbind(res.h * kern.std.h + int1.h,
-                               g2.h * res.h * kern.std.h + int2.h))
+                                      g2.h * res.h * kern.std.h +
+                                        int2.h))
 
   # Estimate local polynomial components --------------------------------------
   # g2.b <- (A - a)/b
@@ -243,9 +248,9 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   control <- .parse.debiased_inference(...)
   kernel.type <- control$kernel.type
   # Compute an estimated pseudo-outcome sequence ------------------------------
-  ord <- order(A)
-  A <- A[ord]
-  pseudo.out <- pseudo.out[ord]
+  # ord <- order(A)
+  # A <- A[ord]
+  # pseudo.out <- pseudo.out[ord]
   n <- length(A)
   kern <- function(t){.kern(t, kernel=kernel.type)}
   if (is.null(eval.pts)){
@@ -254,7 +259,6 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     # eval.pts <- seq(min(A), max(A),
     #                 length.out = min(30, length(unique(A))))
   }
-
   # Compute bandwidth ---------------------------------------------------------
   if(control$bandwidth.method == "LOOCV"){
     if (is.null(control$bw.seq)){
@@ -268,29 +272,28 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     risk <- mapply(function(h, b){
       good.pts <- sapply(eval.pts,
                            function(u) {
-                             length(unique(A[.kern((A - u) / min(h, b), kernel.type) > 0])) > 4 })
-
-      # good.pts.b <- sapply(eval.pts,
-      #                      function(u) {
-      #                        length(unique(A[.kern((A - u) / b, kernel.type) > 0])) > 4 })
-
+                             length(unique(A[.kern((A - u) / min(h, b), kernel.type) > 1e-6])) > 4 })
       good.eval.pts <- eval.pts[good.pts]
-      loocv.res <- .robust.loocv(x = A, y = pseudo.out, h = h, b = b,
-                                 eval.pt=good.eval.pts,
-                                 kernel.type=kernel.type)
+
+      if(mean(good.pts) > 0.8) {
+        loocv.res <- .robust.loocv(x = A,
+                                   y = pseudo.out,
+                                   h = h, b = b,
+                                   good.pts = good.pts,
+                                   eval.pt=good.eval.pts,
+                                   kernel.type=kernel.type)
+      } else {
+        loocv.res <- data.frame(loocv.risk.debias = Inf,
+                                loocv.risk = Inf)
+      }
+
       return(cbind(prop.good.pts = mean(good.pts),
                    loocv.res))
 
       }, bw.seq.h, bw.seq.b, SIMPLIFY = FALSE)
     risk <- do.call(rbind, risk)
-    if(all(risk[, "prop.good.pts"] < 0.8)) {
-      stop("Consider increasing the bandwidth")
-    } else {
-      risk <- risk[risk[, "prop.good.pts"] > 0.8, ]
-    }
-    # risk <- mapply(function(h, b){
-    #   .robust.loocv(A, pseudo.out, h, b, debias = FALSE, eval.pt=eval.pts,
-    #                 kernel.type=kernel.type)}, bw.seq.h, bw.seq.b)
+    risk$h <- bw.seq.h
+    risk$b <- bw.seq.b
     h.opt.debias <- bw.seq.h[which.min(risk[, "loocv.risk.debias"])]
     b.opt.debias <- bw.seq.b[which.min(risk[, "loocv.risk.debias"])]
     h.opt <- bw.seq.h[which.min(risk[, "loocv.risk"])]
@@ -321,14 +324,11 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
                                     c("eval", "theta.hat", "mu.hat", "b.hat")))
   good.pts.h.opt <- sapply(eval.pts,
                            function(u) {
-                             length(unique(A[.kern((A - u) / min(h.opt, b.opt), kernel.type) > 0])) > 4 })
+                             length(unique(A[.kern((A - u) / min(h.opt, b.opt), kernel.type) > 1e-6])) > 4 })
   good.eval.pts.h.opt <- eval.pts[good.pts.h.opt]
   est.res[good.pts.h.opt, ] <- .lprobust(A, pseudo.out, h.opt, b.opt,
                                          eval=good.eval.pts.h.opt,
                                          kernel.type=kernel.type)
-  # if(!is.null(cate.w.fit)) {
-  #   muhat.vals <- .get.muhat(splits.id, cate.w.fit, A, v2, max.n.integral)
-  # } else muhat.vals <- NULL
 
   # Estimate influence function sequence --------------------------------------
   rinf.fns <- mapply(function(a, h.val, b.val){
@@ -341,23 +341,23 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
                         muhat.vals = muhat.vals,
                         mhat.vals = mhat.obs)
   }, good.eval.pts.h.opt, h.opt, b.opt, SIMPLIFY = FALSE)
-  rif.se <- matrix(NA, nrow = 2, ncol = length(eval.pts),
-                   dimnames = list(c("est", "debiased_est"), NULL))
-  rif.se[, good.pts.h.opt] <- sapply(rinf.fns, function(u) apply(u, 2, sd)/sqrt(n))
+  rif.se <- matrix(NA, ncol = 2, nrow = length(eval.pts),
+                   dimnames = list(NULL, c("debiased_est", "est")))
+  rif.se[good.pts.h.opt, ] <- do.call(rbind, lapply(rinf.fns, function(u) apply(u, 2, sd)/sqrt(n)))
   alpha <- control$alpha.pts
 
   ci.ll.p.debias <- ci.ul.p.debias <- ci.ll.p <- ci.ul.p <-
     rep(NA, length(eval.pts))
-  ci.ll.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"]-qnorm(1-alpha/2)*rif.se["debiased_est", good.pts.h.opt]
-  ci.ul.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"]+qnorm(1-alpha/2)*rif.se["debiased_est", good.pts.h.opt]
-  ci.ll.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"]-qnorm(1-alpha/2)*rif.se["est", good.pts.h.opt]
-  ci.ul.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"]+qnorm(1-alpha/2)*rif.se["est", good.pts.h.opt]
+  ci.ll.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"]-qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "debiased_est"]
+  ci.ul.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"]+qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "debiased_est"]
+  ci.ll.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"]-qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "est"]
+  ci.ul.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"]+qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "est"]
 
   # Compute uniform bands by simulating GP ------------------------------------
   if(control$unif){
     get.unif.ep <- function(alpha, debias){
       var.name <- ifelse(debias, "debiased_est", "est")
-      std.inf.vals <- sapply(rinf.fns, function(u) scale(u[, var.name]))
+      std.inf.vals <- do.call(cbind, lapply(rinf.fns, function(u) scale(u[, var.name])))
       boot.samples <- control$bootstrap
       ep.maxes<- replicate(boot.samples,
                            max(abs(rbind(rnorm(n)/sqrt(n)) %*% std.inf.vals)))
@@ -365,12 +365,12 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     }
     alpha <- control$alpha.unif
     ep.unif.quant <- ep.unif.quant.debias <- rep(NA, length(eval.pts))
-    ep.unif.quant[good.pts.h.opt] <- get.unif.ep(1-alpha, FALSE) * rif.se["est", good.pts.h.opt]
-    ep.unif.quant.debias[good.pts.h.opt] <- get.unif.ep(1-alpha, TRUE) * rif.se["debiased_est", good.pts.h.opt]
+    ep.unif.quant[good.pts.h.opt] <- get.unif.ep(1-alpha, FALSE) * rif.se[good.pts.h.opt, "est"]
+    ep.unif.quant.debias[good.pts.h.opt] <- get.unif.ep(1-alpha, TRUE) * rif.se[good.pts.h.opt, "debiased_est"]
     ci.ll.u <- ci.ul.u <- ci.ll.u.debias <- ci.ul.u.debias <-
       rep(NA, length(eval.pts))
-    ci.ll.u[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"] - ep.unif.quant[good.pts.h.opt]
-    ci.ul.u[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"] + ep.unif.quant[good.pts.h.opt]
+    ci.ll.u[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"] - ep.unif.quant[good.pts.h.opt]
+    ci.ul.u[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"] + ep.unif.quant[good.pts.h.opt]
     ci.ll.u.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"] - ep.unif.quant.debias[good.pts.h.opt]
     ci.ul.u.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"] + ep.unif.quant.debias[good.pts.h.opt]
   }
@@ -392,22 +392,22 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     ci.ul.unif.debias=ci.ul.u.debias,
     ci.ll.unif.debias=ci.ll.u.debias,
     bias=est.res[,"b.hat"],
-    if.val=rif.se["est", ],
-    if.val.debias=rif.se["debiased_est", ],
+    if.val=rif.se[, "est"],
+    if.val.debias=rif.se[, "debiased_est"],
     unif.if.val.debias=ep.unif.quant,
     unif.if.val.debias=ep.unif.quant.debias,
     h=h.opt,
     b=b.opt,
     h.debias=h.opt.debias,
-    b.bias=b.opt.debias)
-  return(res)
+    b.debias=b.opt.debias)
+  return(list(res = res, risk = risk))
 }
 
 
 # Compute hat matrix for leave-one-out cross validation for a linear smoother
 .hatmatrix <- function(x, y, h, b, eval.pt=NULL, kernel.type="epa",
                        debias = TRUE){
-  ind <- order(x); x <- x[ind]; y <- y[ind]
+  # ind <- order(x); x <- x[ind]; y <- y[ind]
   if (is.null(eval.pt)){
     eval.pt <- seq(quantile(x, 0.05), quantile(x, 0.95), length.out=30)
   }
@@ -424,6 +424,7 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   hat.mat <- rep(0, neval)
   for (i in 1:neval){
     bw.min   <- sort(abs(x-eval.pt[i]))[10]
+    bw.min <- 0
     h0     <- max(h, bw.min); b0 <- max(b, bw.min)
     k.h   <- .kern((x-eval.pt[i])/h0, kernel.type)/h0
     k.b   <- .kern((x-eval.pt[i])/b0, kernel.type)/b0
@@ -432,14 +433,10 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     if (h>b) ind <- ind.h
     eY  <- y[ind]; eX  <- x[ind]
     K.h <- k.h[ind]; K.b <- k.b[ind]
-    print(sum(ind))
     W.b <- matrix(NA, sum(ind), 4) # (1, u, u^2, u^3)
     for (j in 1:4)  W.b[,j] <- ((eX-eval.pt[i])/b0)^(j-1)
     W.h  <- matrix(NA, sum(ind), 2) # (1, u)
     for (j in 1:2)  W.h[,j] <- ((eX-eval.pt[i])/h0)^(j-1)
-    # print(W.h)
-    # print(unique(sqrt(K.b)*W.b))
-    # solve(crossprod(unique(sqrt(K.b)*W.b)))
     invD.b  <- .qrXXinv((sqrt(K.b)*W.b))
     invD.h  <- .qrXXinv((sqrt(K.h)*W.h))
     hat.mat[i] <- (invD.h%*%t(e1*w.h.zero))[1,] -
@@ -450,8 +447,9 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
 
 
 # Perform leave-one-out cross-validation based on the "hat matrix trick"
-.robust.loocv <- function(x, y, h, b, eval.pt=NULL, kernel.type="epa"){
-  ind <- order(x); x <- x[ind]; y <- y[ind]
+.robust.loocv <- function(x, y, h, b, good.pts,
+                          eval.pt=NULL, kernel.type="epa"){
+  # ind <- order(x); x <- x[ind]; y <- y[ind]
   if (is.null(eval.pt)){
     eval.pt <- seq(quantile(x, 0.05), quantile(x, 0.95), length.out=30)
   }
@@ -463,11 +461,12 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   # Compute debiased local linear estimator -----------------------------------
   est <- .lprobust(x, y, h, b, eval.pt=eval.pt, kernel.type=kernel.type)
   est.fn <- approx(eval.pt, est[,"mu.hat"], xout = x, rule = 2)$y
+  # est.fn <- est[,"mu.hat"]
+  # est.fn.debias <- est[, "theta.hat"]
   est.fn.debias <- approx(eval.pt, est[,"theta.hat"], xout = x, rule = 2)$y
   # Compute the estimate of LOOCV risk ----------------------------------------
-  loocv.risk.debias <- mean(((y - est.fn.debias) / (1 - hat.val.debias))^2, na.rm=TRUE)
-  loocv.risk <- mean(((y - est.fn) / (1 - hat.val))^2, na.rm=TRUE)
-
+  loocv.risk.debias <- mean(((y - est.fn.debias) / (1 - hat.val.debias))^2)
+  loocv.risk <- mean(((y - est.fn) / (1 - hat.val))^2)
   return(data.frame(loocv.risk.debias = loocv.risk.debias,
                     loocv.risk = loocv.risk))
 }
@@ -475,7 +474,7 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
 
 # Debiased local linear regression
 .lprobust <- function(x, y, h, b, eval.pt=NULL, kernel.type="epa"){
-  ind <- order(x); x <- x[ind]; y <- y[ind]
+  # ind <- order(x); x <- x[ind]; y <- y[ind]
   if (is.null(eval.pt)){
     eval.pt <- seq(quantile(x, 0.05), quantile(x, 0.95),  length.out=30)
   }
@@ -483,13 +482,9 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   estimate.mat <- matrix(NA, neval, 4)
   colnames(estimate.mat) <- c("eval", "theta.hat", "mu.hat", "b.hat")
   c.2 <- integrate(function(t){t^2*.kern(t, kernel.type)}, -Inf, Inf)$value
-  # if(debias){
-  #   c.2 <- integrate(function(t){t^2*.kern(t, kernel.type)}, -Inf, Inf)$value
-  # } else {
-  #   c.2 <- 0; b <- h
-  # }
   for (i in 1:neval){
-    bw.min <- sort(abs(x-eval.pt[i]))[10]
+    # bw.min <- sort(abs(x-eval.pt[i]))[10]
+    bw.min <- 0
     h0 <- max(h, bw.min); b0 <- max(b, bw.min)
     k.h <- .kern((x-eval.pt[i])/h0, kernel.type)/h0
     k.b <- .kern((x-eval.pt[i])/b0, kernel.type)/b0
@@ -573,3 +568,49 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
 .qrXXinv = function(x, ...) {
   chol2inv(chol(crossprod(x)))
 }
+
+
+.hatmatrix2 <- function(x, y, h, b, eval.pt=NULL, kernel.type="epa",
+                        debias = TRUE){
+  # ind <- order(x); x <- x[ind]; y <- y[ind]
+  if (is.null(eval.pt)){
+    eval.pt <- seq(quantile(x, 0.05), quantile(x, 0.95), length.out=30)
+  }
+  neval <- length(eval.pt)
+  if(debias) {
+    c.2 <- integrate(function(t){t^2*.kern(t, kernel.type)}, -Inf, Inf)$value
+  } else {
+    c.2 <- 0
+  }
+
+  e1 <- matrix(c(1, 0), ncol=2); e3 <- matrix(c(1, 0, 0, 0), ncol=4)
+  w.h.zero   <- .kern(0, kernel.type)/h
+  w.b.zero   <- .kern(0, kernel.type)/b
+  hat.mat <- rep(0, neval)
+  for (i in 1:neval){
+    bw.min   <- sort(abs(x-eval.pt[i]))[10]
+    bw.min <- 0
+    h0     <- max(h, bw.min); b0 <- max(b, bw.min)
+    # print(h0)
+    k.h   <- .kern((x-eval.pt[i])/h0, kernel.type)/h0
+    k.b   <- .kern((x-eval.pt[i])/b0, kernel.type)/b0
+    ind.h <- k.h>0;  ind.b <- k.b>0
+    N.h   <- sum(ind.h);  N.b <- sum(ind.b); ind <- ind.b
+    if (h>b) ind <- ind.h
+    eY  <- y[ind]; eX  <- x[ind]
+    K.h <- k.h[ind]; K.b <- k.b[ind]
+    W.b <- matrix(NA, sum(ind), 4) # (1, u, u^2, u^3)
+    for (j in 1:4)  W.b[,j] <- ((eX-eval.pt[i])/b0)^(j-1)
+    W.h  <- matrix(NA, sum(ind), 2) # (1, u)
+    for (j in 1:2)  W.h[,j] <- ((eX-eval.pt[i])/h0)^(j-1)
+    # print(W.h)
+    # print(unique(sqrt(K.b)*W.b))
+    # solve(crossprod(unique(sqrt(K.b)*W.b)))
+    invD.b  <- .qrXXinv((sqrt(K.b)*W.b))
+    invD.h  <- .qrXXinv((sqrt(K.h)*W.h))
+    hat.mat[i] <- (invD.h%*%t(e1*w.h.zero))[1,] -
+      ((h/b)^2*c.2*invD.b%*%t(e3*w.b.zero))[3,]
+  }
+  return(hat.mat)
+}
+

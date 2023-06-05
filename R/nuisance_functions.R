@@ -192,53 +192,53 @@ drl.rf <- function(y, x, new.x) {
   return((list(res = res, model = fit)))
 }
 
-drl.basis <- function(y, x, new.x, kmin = 3, kmax = 10) {
-  require(splines)
-  x <- as.data.frame(x)
-  n.vals <- apply(x, 2, function(u) length(unique(u)))
-  var.type <- unlist(lapply(x, function(u) paste0(class(u), collapse = " ")))
-  factor.boolean <- n.vals <= 10 | var.type == "factor" | var.type == "ordered factor"
-  x.cont <- x[, which(!factor.boolean), drop = FALSE]
-  x.disc <- x[, which(factor.boolean), drop = FALSE]
-
-  n.basis <- expand.grid(rep(list(kmin:kmax), ncol(x.cont)))
-  risk <- models <- rep(NA, nrow(n.basis))
-  for(i in 1:nrow(n.basis)){
-    if(ncol(x.cont) > 0) {
-      lm.form <- paste0("~ ", paste0("bs(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
-      if(ncol(x.cont) > 1) {
-        for(k in 2:ncol(x.cont)) {
-          lm.form <- c(lm.form, paste0("bs(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
-        }
-      }
-    }
-    if(ncol(x.disc) > 0) {
-      for(k in 1:ncol(x.disc)) {
-        if(ncol(x.cont) == 0 & k == 1) {
-          lm.form <- paste0("~ as.factor(", colnames(x.disc)[k], ")")
-        } else {
-          lm.form <- c(lm.form, paste0("as.factor(", colnames(x.disc)[k], ")"))
-        }
-      }
-    }
-
-    lm.form <- paste0(lm.form, collapse = "*")
-    fit <- lm(as.formula(paste0("y", lm.form)), data = cbind(data.frame(y = y), x))
-    # x.mat <- model.matrix(as.formula(lm.form), data = x)
-    # hat.mat <- x.mat %*% solve(crossprod(x.mat, x.mat)) %*% t(x.mat)
-    diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
-    risk[i] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
-    models[i] <- lm.form
-  }
-
-  best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
-                   data = cbind(data.frame(y = y), x))
-
-  out <- predict(best.model, newdata = as.data.frame(new.x))
-  res <- cbind(out, NA, NA)
-  return((list(drl.form = models[which.min(risk)], res = res, model =  best.model)))
-
-}
+# drl.basis <- function(y, x, new.x, kmin = 3, kmax = 10) {
+#   require(splines)
+#   x <- as.data.frame(x)
+#   n.vals <- apply(x, 2, function(u) length(unique(u)))
+#   var.type <- unlist(lapply(x, function(u) paste0(class(u), collapse = " ")))
+#   factor.boolean <- n.vals <= 10 | var.type == "factor" | var.type == "ordered factor"
+#   x.cont <- x[, which(!factor.boolean), drop = FALSE]
+#   x.disc <- x[, which(factor.boolean), drop = FALSE]
+#
+#   n.basis <- expand.grid(rep(list(kmin:kmax), ncol(x.cont)))
+#   risk <- models <- rep(NA, nrow(n.basis))
+#   for(i in 1:nrow(n.basis)){
+#     if(ncol(x.cont) > 0) {
+#       lm.form <- paste0("~ ", paste0("bs(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
+#       if(ncol(x.cont) > 1) {
+#         for(k in 2:ncol(x.cont)) {
+#           lm.form <- c(lm.form, paste0("bs(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
+#         }
+#       }
+#     }
+#     if(ncol(x.disc) > 0) {
+#       for(k in 1:ncol(x.disc)) {
+#         if(ncol(x.cont) == 0 & k == 1) {
+#           lm.form <- paste0("~ as.factor(", colnames(x.disc)[k], ")")
+#         } else {
+#           lm.form <- c(lm.form, paste0("as.factor(", colnames(x.disc)[k], ")"))
+#         }
+#       }
+#     }
+#
+#     lm.form <- paste0(lm.form, collapse = "*")
+#     fit <- lm(as.formula(paste0("y", lm.form)), data = cbind(data.frame(y = y), x))
+#     # x.mat <- model.matrix(as.formula(lm.form), data = x)
+#     # hat.mat <- x.mat %*% solve(crossprod(x.mat, x.mat)) %*% t(x.mat)
+#     diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
+#     risk[i] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
+#     models[i] <- lm.form
+#   }
+#
+#   best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
+#                    data = cbind(data.frame(y = y), x))
+#
+#   out <- predict(best.model, newdata = as.data.frame(new.x))
+#   res <- cbind(out, NA, NA)
+#   return((list(drl.form = models[which.min(risk)], res = res, model =  best.model)))
+#
+# }
 
 
 lm.discrete.v <- function(y, x, new.x) {

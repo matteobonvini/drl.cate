@@ -309,17 +309,19 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
         }
         else {
           if(univariate_reg) {
+            fit_debias_inf <- debiased_inference(A = vj,
+                                                 pseudo.out = pseudo.y[[alg]][, 1],
+                                                 eval.pts = v0[[j]],
+                                                 tau = 1,
+                                                 bandwidth.method = "LOOCV",
+                                                 kernel.type = "gau",
+                                                 bw.seq = bw.stage2[[j]])
             univariate_res[[alg]][[j]] <-
               list(
                 data = data.frame(pseudo = pseudo.y[[alg]][, 1],
                                   exposure = vj),
-                res = debiased_inference(A = vj,
-                                         pseudo.out = pseudo.y[[alg]][, 1],
-                                         eval.pts = v0[[j]],
-                                         tau = 1,
-                                         bandwidth.method = "LOOCV",
-                                         kernel.type = "uni",
-                                         bw.seq = bw.stage2[[j]])
+                res = fit_debias_inf$res,
+                risk = fit_debias_inf$risk
               )
           }
 
@@ -329,19 +331,22 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                      v1 = vj, v2 = v[, -j, drop = FALSE],
                                      max.n.integral = 1000)
 
+            fit_debias_inf <- debiased_inference(A = vj,
+                                                 pseudo.out = pseudo.y.pd[[alg]][, j],
+                                                 tau = 1,
+                                                 eval.pts = v0[[j]],
+                                                 mhat.obs = theta.bar[[alg]][, j],
+                                                 muhat.vals = muhat.vals,
+                                                 bandwidth.method = "LOOCV",
+                                                 kernel.type = "gau",
+                                                 bw.seq = bw.stage2[[j]])
+
             pd_res[[alg]][[j]] <-
               list(
                 data = data.frame(pseudo = pseudo.y.pd[[alg]][, j],
                                   exposure = vj),
-                res = debiased_inference(A = vj,
-                                         pseudo.out = pseudo.y.pd[[alg]][, j],
-                                         tau = 1,
-                                         eval.pts = v0[[j]],
-                                         mhat.obs = theta.bar[[alg]][, j],
-                                         muhat.vals = muhat.vals,
-                                         bandwidth.method = "LOOCV",
-                                         kernel.type = "uni",
-                                         bw.seq = bw.stage2[[j]])
+                res = fit_debias_inf$res,
+                risk = fit_debias_inf$risk
               )
           }
         }
@@ -369,7 +374,6 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
           m <- model.frame(tt, new.dat.additive)
           design.mat <- model.matrix(tt, m)
           beta.vcov <- sandwich::vcovHC(additive_model$model)
-          print(beta.vcov)
           sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
 
           ci.l <- preds.j.additive - 1.96 * sqrt(sigma2hat)
