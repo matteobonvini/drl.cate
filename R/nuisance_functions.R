@@ -387,7 +387,7 @@ lm.discrete.v <- function(y, x, new.x) {
 }
 
 
-drl.basis.additive <- function(y, x, new.x, kmin = 3, kmax = 10) {
+drl.basis.additive <- function(y, x, new.x, kmin = 3, kmax = 20) {
   require(splines)
   x <- as.data.frame(x)
   n.vals <- apply(x, 2, function(u) length(unique(u)))
