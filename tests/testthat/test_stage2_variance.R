@@ -18,6 +18,5 @@ test_that("expected behavior of second stage variance estimator", {
     design.mat <- cbind(1, A)
     sigmahat2 <- sqrt(diag(design.mat %*% beta.vcov %*% t(design.mat)))
     expect_true(max(abs(sigmahat - sigmahat2)) < 1e-10)
-    print(i)
   }
 })

@@ -15,8 +15,9 @@ test_that("expected behavior of second stage local linear smoother", {
       #                             truncate = FALSE, 
       #                             bwdisc = 100)
       eval.pts <- seq(min(A), max(A), length.out = 100)
+      require(locpol)
       fit2 <- suppressWarnings({locpol(y ~ x, data = data.frame(x = A, y = pseudo.out),
-                                       bw = bw, xeval = eval.pts, kernel = gaussK)})
+                                               bw = bw, xeval = eval.pts, kernel = gaussK)})
       # fit3 <- tryCatch(list(res = locpol(y ~ x, data = data.frame(x = A, y = pseudo.out), 
       #                         bw = bw, xeval = eval.pts, kernel = gaussK)),
       #                  error=function(e) e, 

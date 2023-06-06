@@ -68,11 +68,12 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
     names(ites_x) <- names(pseudo.y.pd) <- names(theta.bar) <- learner
 
   stage2.reg.data <- vector("list", nsplits)
+  drl.form <- reg.model <- vector("list", nsplits)
   stage2.reg.data.pd <- replicate(ncol(v), vector("list", nsplits),
                                   simplify = FALSE)
 
   for(k in 1:nsplits) {
-
+    print(paste0("Considering split # ", k, "out of ", nsplits))
     test.idx <- k == s
     train.idx <- k != s
     if(all(!train.idx)) train.idx <- test.idx
@@ -134,11 +135,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                                  y = y.te,
                                                  a = a.te,
                                                  fold.id = k), v.te)
-        if(k == 1) {
-          # model and formula do not change by fold
-          drl.form <- drl.res$drl.form
-          reg.model <- drl.res$model
-        }
+
+        drl.form[[k]] <- drl.res$drl.form
+        reg.model[[k]] <- drl.res$model
+
         drl.vals <-  as.matrix(drl.res$res)
         drl.vals.pi <-  as.matrix(drl.res.pi$res)
         drl.vals.x <- as.matrix(option$drl.x(y = pseudo, x = x.te,
