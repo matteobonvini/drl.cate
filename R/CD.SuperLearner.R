@@ -64,11 +64,12 @@
 CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
                             n.bins=2:floor(length(X)/50),
                             verbose=FALSE, save.threshold=.001) {
+  require(Rsolnp)
   n <- length(X)
   sorted  <- rep(1:n.folds, length.out = n)
   folds <- sample(sorted, n, replace=FALSE)
   valid.rows <- lapply(1:n.folds, function(v) which(folds == v))
-  
+
   # Construct prediction matrix
   # preds will contain the test-data predictions from each model on each bin type.
   if(class(SL.library) == "list") {
@@ -80,10 +81,10 @@ CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
   n.models <- 1 + length(n.bins) * n.sl.models
   library.densities <- cv.library.densities <- matrix(NA, nrow=n, ncol=n.models)
   library.names <- c("SL.loc.scale", c(sapply(n.bins, function(k) paste0(cand.algs, "_", k, "bins"))))
-  
+
   # model_fits will contain each of the models fitted to the entire dataset
   model.fits <- vector(mode='list', 1+length(n.bins))
-  
+
   # First fit the nonparametric "location-scale" smoothing-based model
   if(verbose) cat("Fitting location-scale... ")
   for(v in 1:n.folds) {
@@ -110,10 +111,10 @@ CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
         dens <- density((X[folds != v] - mean.model$SL.predict)/sqrt(var.hats))
         cv.library.densities[folds == v, 1] <- c(approx(dens$x, dens$y, xout=(X[folds == v] - mean.preds)/sqrt(var.preds), rule=2)$y / sqrt(var.preds))
       }
-      
+
     }
   }
-  
+
   cat("full data... ")
   mean.model <- SuperLearner(Y=X, X=W, SL.library = SL.library,
                              family='gaussian', method="method.NNLS")
@@ -125,7 +126,7 @@ CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
   dens <- density((X - mean.preds)/sqrt(var.preds))
   library.densities[, 1] <- c(approx(dens$x, dens$y, xout=(X - mean.preds)/sqrt(var.preds))$y / sqrt(var.preds))
   model.fits[[1]] <- list(mean.model=mean.model, var.model=var.model, dens=dens)
-  
+
   # column of prediciton matrix counter
   column.start <- 2
   column.end <- 1 + n.sl.models
@@ -136,7 +137,7 @@ CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
     if(verbose) cat("\nEstimating models with", k, "bins... ")
     ycuts <- seq(0,1,by=1/k)
     bins <- quantile(X, ycuts)
-    
+
     disc.X <- cut(X, breaks=bins, include.lowest=TRUE, ordered_result=TRUE)
     disc.X.num <- as.numeric(disc.X)
     labs <- levels(disc.X)
@@ -161,25 +162,25 @@ CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
       cv.library.densities[i,column.start:column.end] <- cv.bin.probs[i,,disc.X.num[i]] / bin.lengths[disc.X.num[i]]
       library.densities[i,column.start:column.end] <- bin.probs[i,,disc.X.num[i]] / bin.lengths[disc.X.num[i]]
     }
-    
+
     column.start <- column.end + 1
     column.end <- column.end + n.sl.models
   }
-  
+
   if(verbose) cat("\nOptimizing model weights...\n")
-  
+
   # Remove algs with errors in cv predictions
   errors.in.library <- apply(cv.library.densities, 2, function(col) any(is.na(col)))
   if(any(errors.in.library)) warning(paste0("Errors in the following candidate algorithms: ", library.names[which(errors.in.library)]))
   n.include <- sum(!errors.in.library)
-  
+
   # Do SL log-likelihood optimization
   cv_risk <- function(beta) -sum(log(cv.library.densities[,!errors.in.library] %*% beta))
   capture.output(solnp_solution <- solnp(rep(1/n.include, n.include), cv_risk, eqfun=sum, eqB=1, ineqfun=function(beta) beta, ineqLB=rep(0,n.include), ineqUB=rep(1, n.include)))
   coef <- rep(0, n.models)
   coef[!errors.in.library] <- solnp_solution$pars
   SL.density <- c(library.densities[,!errors.in.library] %*% solnp_solution$pars)
-  
+
   # Only return algorithms with larger than save.threshold coefficient
   save <- which(coef > save.threshold)
   save.model.fits <- vector(mode='list', n.models)
@@ -195,7 +196,7 @@ CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
       }
     }
   }
-  
+
   return(list(SL.library=SL.library, library.names=library.names, model.bins=model.bins, model.algs=model.algs, SL.density=SL.density, library.densities=library.densities, coef=coef, cv.library.densities=cv.library.densities, model.fits=save.model.fits, n.bins=n.bins, bin.breaks=bin.breaks, n.folds=n.folds, folds=folds, errors.in.library=errors.in.library))
 }
 
@@ -206,10 +207,10 @@ predict.CD.SuperLearner <- function(fit, newdata, threshold=.001, verbose=FALSE)
   model.names <- fit$library.names[model.nums]
   bins <- fit$model.bins[model.nums]
   bins <- unique(bins[!is.na(bins)])
-  
+
   newW <- newdata[,names(newdata) != "X"]
   library.densities <- matrix(NA, nrow=nrow(newdata), ncol=length(fit$library.names))
-  
+
   for(k in model.nums) {
     if(k == 1) {
       mean.preds <- c(predict(fit$model.fits[[1]]$mean.model, newdata=newW, onlySL=TRUE)$pred)
