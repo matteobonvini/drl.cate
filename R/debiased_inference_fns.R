@@ -105,11 +105,8 @@
   }
   gamma.h <- coef(lm(Y ~ a.std.h, weights = kern.std.h))
   res.h <- Y - (gamma.h[1] + gamma.h[2] * a.std.h)
-  # inf.fn <- t(Dh.inv %*% rbind(Y * kern.std.h + int1.h,
-  #                              g2.h * Y * kern.std.h + int2.h))
   inf.fn <- t(Dh.inv %*% rbind(res.h * kern.std.h + int1.h,
-                               g2.h * res.h * kern.std.h +
-                                 int2.h))
+                               g2.h * res.h * kern.std.h + int2.h))
 
   # Estimate local polynomial components --------------------------------------
   # g2.b <- (A - a)/b
@@ -275,10 +272,14 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     bw.seq.h <- bw.seq.b <- bw.seq
   } else stop("Specify a valid bandwidth method.")
 
+
+
   risk <- mapply(function(h, b){
-    good.pts <- sapply(eval.pts,
-                       function(u) {
-                         length(unique(A[.kern((A - u) / min(h, b), kernel.type) > 1e-6])) > 4 })
+    count.pts.nearby <- Vectorize(function(u){
+      # count the unique points nearby u
+      length(unique(A[.kern((A - u) / min(h, b), kernel.type) > 1e-6]))
+    })
+    good.pts <- count.pts.nearby(eval.pts) > 4
     good.eval.pts <- eval.pts[good.pts]
 
     if(mean(good.pts) > 0.8) {
