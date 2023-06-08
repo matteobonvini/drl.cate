@@ -89,18 +89,18 @@
       int2.h[sub.idx] <-
         colMeans(g2.h[sub.idx] * kern.std.h[sub.idx] *
                    (muhat.mat - mhat))
-        int1.b[sub.idx] <- colMeans(kern.std.b[sub.idx] *
-                                      (muhat.mat - mhat))
+      int1.b[sub.idx] <- colMeans(kern.std.b[sub.idx] *
+                                    (muhat.mat - mhat))
 
-        int2.b[sub.idx] <-
-          colMeans(g2.b[sub.idx] * kern.std.b[sub.idx] *
-                     (muhat.mat - mhat))
-        int3.b[sub.idx] <-
-          colMeans(g3.b[sub.idx] * kern.std.b[sub.idx] *
-                     (muhat.mat - mhat))
-        int4.b[sub.idx] <-
-          colMeans(g4.b[sub.idx] * kern.std.b[sub.idx] *
-                     (muhat.mat - mhat))
+      int2.b[sub.idx] <-
+        colMeans(g2.b[sub.idx] * kern.std.b[sub.idx] *
+                   (muhat.mat - mhat))
+      int3.b[sub.idx] <-
+        colMeans(g3.b[sub.idx] * kern.std.b[sub.idx] *
+                   (muhat.mat - mhat))
+      int4.b[sub.idx] <-
+        colMeans(g4.b[sub.idx] * kern.std.b[sub.idx] *
+                   (muhat.mat - mhat))
     }
   }
   gamma.h <- coef(lm(Y ~ a.std.h, weights = kern.std.h))
@@ -108,8 +108,8 @@
   # inf.fn <- t(Dh.inv %*% rbind(Y * kern.std.h + int1.h,
   #                              g2.h * Y * kern.std.h + int2.h))
   inf.fn <- t(Dh.inv %*% rbind(res.h * kern.std.h + int1.h,
-                                      g2.h * res.h * kern.std.h +
-                                        int2.h))
+                               g2.h * res.h * kern.std.h +
+                                 int2.h))
 
   # Estimate local polynomial components --------------------------------------
   # g2.b <- (A - a)/b
@@ -123,17 +123,17 @@
   #   int3.b <- colMeans(g3.b * kern.std.b * (muhat.mat - mhat.obs))
   #   int4.b <- colMeans(g4.b * kern.std.b * (muhat.mat - mhat.obs))
   # }
-    model.b <- lm(Y ~ poly(a.std.b, 3), weights = kern.std.b)
-    res.b <- Y - predict(model.b)
-    inf.fn.robust <- t(Db.inv %*% rbind(res.b * kern.std.b + int1.b,
-                                        g2.b * res.b * kern.std.b + int2.b,
-                                        g3.b * res.b * kern.std.b + int3.b,
-                                        g4.b * res.b * kern.std.b + int4.b))
-    c2 <- integrate(function(u){u^2 * kern(u)}, -Inf, Inf)$value
-    debiased_est <- inf.fn[,1] - (h/b)^2 * c2 * inf.fn.robust[,3]
-    est <- inf.fn[,1]
-    out <- data.frame(debiased_est = debiased_est, est = est)
-    return(out)
+  model.b <- lm(Y ~ poly(a.std.b, 3), weights = kern.std.b)
+  res.b <- Y - predict(model.b)
+  inf.fn.robust <- t(Db.inv %*% rbind(res.b * kern.std.b + int1.b,
+                                      g2.b * res.b * kern.std.b + int2.b,
+                                      g3.b * res.b * kern.std.b + int3.b,
+                                      g4.b * res.b * kern.std.b + int4.b))
+  c2 <- integrate(function(u){u^2 * kern(u)}, -Inf, Inf)$value
+  debiased_est <- inf.fn[,1] - (h/b)^2 * c2 * inf.fn.robust[,3]
+  est <- inf.fn[,1]
+  out <- data.frame(debiased_est = debiased_est, est = est)
+  return(out)
 }
 
 
@@ -260,63 +260,68 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
     #                 length.out = min(30, length(unique(A))))
   }
   # Compute bandwidth ---------------------------------------------------------
+  # if(control$bandwidth.method == "LOOCV"){
+  #   if (is.null(control$bw.seq)){
+  #     bw.seq <- seq(0.1*n^{-1/5}, 1*n^{-1/5}, length.out = 10)
+  #   }
+  #   else{
+  #     bw.seq <- control$bw.seq
+  #   }
+  bw.seq <- control$bw.seq
   if(control$bandwidth.method == "LOOCV"){
-    if (is.null(control$bw.seq)){
-      bw.seq <- seq(0.1*n^{-1/5}, 1*n^{-1/5}, length.out = 10)
-    }
-    else{
-      bw.seq <- control$bw.seq
-    }
     bw.seq.h <- rep(bw.seq, length(bw.seq))
     bw.seq.b <- rep(bw.seq, each=length(bw.seq))
-    risk <- mapply(function(h, b){
-      good.pts <- sapply(eval.pts,
-                           function(u) {
-                             length(unique(A[.kern((A - u) / min(h, b), kernel.type) > 1e-6])) > 4 })
-      good.eval.pts <- eval.pts[good.pts]
+  } else if(control$bandwidth.method == "LOOCV(h=b)"){
+    bw.seq.h <- bw.seq.b <- bw.seq
+  } else stop("Specify a valid bandwidth method.")
 
-      if(mean(good.pts) > 0.8) {
-        loocv.res <- .robust.loocv(x = A,
-                                   y = pseudo.out,
-                                   h = h, b = b,
-                                   good.pts = good.pts,
-                                   eval.pt=good.eval.pts,
-                                   kernel.type=kernel.type)
-      } else {
-        loocv.res <- data.frame(loocv.risk.debias = Inf,
-                                loocv.risk = Inf)
-      }
+  risk <- mapply(function(h, b){
+    good.pts <- sapply(eval.pts,
+                       function(u) {
+                         length(unique(A[.kern((A - u) / min(h, b), kernel.type) > 1e-6])) > 4 })
+    good.eval.pts <- eval.pts[good.pts]
 
-      return(cbind(prop.good.pts = mean(good.pts),
-                   loocv.res))
-
-      }, bw.seq.h, bw.seq.b, SIMPLIFY = FALSE)
-    risk <- do.call(rbind, risk)
-    risk$h <- bw.seq.h
-    risk$b <- bw.seq.b
-    h.opt.debias <- bw.seq.h[which.min(risk[, "loocv.risk.debias"])]
-    b.opt.debias <- bw.seq.b[which.min(risk[, "loocv.risk.debias"])]
-    h.opt <- bw.seq.h[which.min(risk[, "loocv.risk"])]
-    b.opt <- bw.seq.b[which.min(risk[, "loocv.risk"])]
-  }
-  else if(control$bandwidth.method == "LOOCV(h=b)"){
-    if (is.null(control$bw.seq)){
-      bw.seq <- seq(0.1*n^{-1/5}, 1*n^{-1/5}, length.out = 50)
+    if(mean(good.pts) > 0.8) {
+      loocv.res <- .robust.loocv(x = A,
+                                 y = pseudo.out,
+                                 h = h, b = b,
+                                 good.pts = good.pts,
+                                 eval.pt=good.eval.pts,
+                                 kernel.type=kernel.type)
+    } else {
+      loocv.res <- data.frame(loocv.risk.debias = Inf,
+                              loocv.risk = Inf)
     }
-    else{
-      bw.seq <- control$bw.seq
-    }
-    risk <- mapply(function(h, b){
-      .robust.loocv(A, pseudo.out, h, b, debias, eval.pt=eval.pts,
-                    kernel.type=kernel.type)}, bw.seq, bw.seq)
-    h.opt <- bw.seq[which.min(risk)]
-    b.opt <- bw.seq[which.min(risk)]
-  }
-  else{
-    h.opt <- lpbwselect(pseudo.out, A, eval=eval.pts,
-                        bwselect="imse-dpi")$bws[,2]
-    b.opt <- h.opt/tau
-  }
+
+    return(cbind(prop.good.pts = mean(good.pts),
+                 loocv.res))
+
+  }, bw.seq.h, bw.seq.b, SIMPLIFY = FALSE)
+  risk <- do.call(rbind, risk)
+  risk$h <- bw.seq.h
+  risk$b <- bw.seq.b
+  h.opt.debias <- bw.seq.h[which.min(risk[, "loocv.risk.debias"])]
+  b.opt.debias <- bw.seq.b[which.min(risk[, "loocv.risk.debias"])]
+  h.opt <- bw.seq.h[which.min(risk[, "loocv.risk"])]
+  b.opt <- bw.seq.b[which.min(risk[, "loocv.risk"])]
+  # else if(control$bandwidth.method == "LOOCV(h=b)"){
+  #   if (is.null(control$bw.seq)){
+  #     bw.seq <- seq(0.1*n^{-1/5}, 1*n^{-1/5}, length.out = 50)
+  #   }
+  #   else{
+  #     bw.seq <- control$bw.seq
+  #   }
+  #   risk <- mapply(function(h, b){
+  #     .robust.loocv(A, pseudo.out, h, b, debias, eval.pt=eval.pts,
+  #                   kernel.type=kernel.type)}, bw.seq, bw.seq)
+  #   h.opt <- bw.seq[which.min(risk)]
+  #   b.opt <- bw.seq[which.min(risk)]
+  # }
+  # else{
+  #   h.opt <- lpbwselect(pseudo.out, A, eval=eval.pts,
+  #                       bwselect="imse-dpi")$bws[,2]
+  #   b.opt <- h.opt/tau
+  # }
 
   # Fit debiased local linear regression --------------------------------------
   est.res <- matrix(NA, ncol = 4, nrow = length(eval.pts),

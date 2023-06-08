@@ -73,7 +73,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                   simplify = FALSE)
 
   for(k in 1:nsplits) {
-    print(paste0("Considering split # ", k, "out of ", nsplits))
+    print(paste0("Considering split # ", k, " out of ", nsplits))
     test.idx <- k == s
     train.idx <- k != s
     if(all(!train.idx)) train.idx <- test.idx
@@ -169,6 +169,13 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                                                  new.v1 = v1.j.te,
                                                                  new.v2 = v2.not.v1.j.te)
 
+            if(sum(cond.dens.vals.te < 0.01) > 0) {
+              warning(paste0("Effect modifier # ", j, ". There are ", sum(cond.dens.vals.te < 0.01),
+                      " conditional density values < 0.01. They will ",
+                      "truncated at 0.01."))
+              cond.dens.vals.te[cond.dens.vals.te < 0.01] <- 0.01
+            }
+
             cate.tr <- mu1hat.vals[-c(1:n.te)] - mu0hat.vals[-c(1:n.te)]
 
             cate.w.fit[[j]][[k]] <- option$cate.w(tau = cate.tr, w = w.tr,
@@ -179,7 +186,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             if(n.te > 1000) {
 
               if(is.factor(v1.j.te)) {
-                v1.j.seq <- levels(v1.j.te)
+                v1.j.seq <- factor(levels(v1.j.te), levels = levels(v1.j.te))
               } else {
                 v1.j.seq <- seq(min(v1.j.te), max(v1.j.te), length.out = 100)
               }
@@ -199,6 +206,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
               marg.dens.vals <- tmp.cond.dens.fn(v1.j.seq)
               cate.w.avg.vals <- tmp.cate.w.fit.fn(v1.j.seq)
               if(is.factor(v1.j.te)) {
+                names(marg.dens.vals) <- v1.j.seq
                 marg.dens <- theta.bar.vals <- rep(NA, length(v1.j.te))
                 for(u in levels(v1.j.te)) {
                   marg.dens[v1.j.te == u] <-
@@ -272,6 +280,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
       } else if(alg == "lp-r") next
     }
   }
+  print("Done with fitting nuisance functions.")
   for(alg in learner) {
 
     if(alg != "dr") next
@@ -312,8 +321,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             fit_debias_inf <- debiased_inference(A = vj,
                                                  pseudo.out = pseudo.y[[alg]][, 1],
                                                  eval.pts = v0[[j]],
-                                                 tau = 1,
-                                                 bandwidth.method = "LOOCV",
+                                                 bandwidth.method = "LOOCV(h=b)",
                                                  kernel.type = "gau",
                                                  bw.seq = bw.stage2[[j]])
             univariate_res[[alg]][[j]] <-
@@ -333,11 +341,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
             fit_debias_inf <- debiased_inference(A = vj,
                                                  pseudo.out = pseudo.y.pd[[alg]][, j],
-                                                 tau = 1,
                                                  eval.pts = v0[[j]],
                                                  mhat.obs = theta.bar[[alg]][, j],
                                                  muhat.vals = muhat.vals,
-                                                 bandwidth.method = "LOOCV",
+                                                 bandwidth.method = "LOOCV(h=b)",
                                                  kernel.type = "gau",
                                                  bw.seq = bw.stage2[[j]])
 
@@ -358,8 +365,9 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                                    dimnames = list(NULL,
                                                                    colnames(v))))
           for(l in 1:ncol(v)) {
-            if(l == j) new.dat.additive[, l] <- v0[[j]]
-            else {
+            if(l == j) {
+              new.dat.additive[, l] <- v0[[j]]
+            } else {
               if(is.factor(v[, l])) {
                 new.dat.additive[, l] <- factor(levels(v[, l])[1],
                                                 levels = levels(v[, l]))
