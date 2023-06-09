@@ -19,6 +19,7 @@ cate(
   partial_dependence = FALSE,
   additive_approx = FALSE,
   bw.stage2 = NULL,
+  sample.split.cond.dens = FALSE,
   ...
 )
 }

@@ -341,8 +341,8 @@ lm.discrete.v <- function(y, x, new.x) {
 }
 
 
-drl.basis.additive <- function(y, x, new.x, kmin = 3, kmax = 20) {
-  require(splines)
+drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
+  # require(splines)
   x <- as.data.frame(x)
   n.vals <- apply(x, 2, function(u) length(unique(u)))
   var.type <- unlist(lapply(x, function(u) paste0(class(u), collapse = " ")))
@@ -354,10 +354,10 @@ drl.basis.additive <- function(y, x, new.x, kmin = 3, kmax = 20) {
   risk <- models <- rep(NA, nrow(n.basis))
   for(i in 1:nrow(n.basis)){
     if(ncol(x.cont) > 0) {
-      lm.form <- paste0("~ ", paste0("bs(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
+      lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
       if(ncol(x.cont) > 1) {
         for(k in 2:ncol(x.cont)) {
-          lm.form <- c(lm.form, paste0("bs(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
+          lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
         }
       }
     }
@@ -385,7 +385,8 @@ drl.basis.additive <- function(y, x, new.x, kmin = 3, kmax = 20) {
 
   out <- predict(best.model, newdata = as.data.frame(new.x))
   res <- cbind(out, NA, NA)
-  return((list(drl.form = models[which.min(risk)], res = res, model =  best.model)))
+  return((list(drl.form = models[which.min(risk)], res = res, model =  best.model,
+               risk = risk)))
 
 }
 

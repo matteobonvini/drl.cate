@@ -2,7 +2,7 @@ context("gaps in the support of eff modif")
 
 test_that("expected NAs when there are gaps", {
   for(i in 1:10){
-    n <- 100
+    n <- 1000
     y <- rnorm(n)
     a <- rbinom(n, 1, 0.5)
     x <- as.data.frame(matrix(rnorm(n * 3), ncol = 3))
@@ -11,16 +11,18 @@ test_that("expected NAs when there are gaps", {
     x$x5 <- factor(sample(4:6, n, replace = TRUE), levels = c(4,5,6))
     colnames(x) <- paste0("x", 1:5)
 
-    pi.x <- function(a, x, new.x) return(rep(0.5, nrow(new.x)))
+    pi.x <- function(a, x, new.x) {
+      return(list(res = rep(0.5, nrow(new.x))))
+    }
     mu1.x <- function(y, a, x, new.x) {
       mm <- model.matrix(as.formula("~."), new.x)
       beta <- c(0, rep(1, ncol(mm) -1))
-      return(mm %*% beta)
+      return(list(res = mm %*% beta))
     }
     mu0.x <- function(y, a, x, new.x) {
       mm <- model.matrix(as.formula("~."), new.x)
       beta <- c(0, rep(0.5, ncol(mm) - 1))
-      return(mm %*% beta)
+      return(list(res = mm %*% beta))
     }
     drl.v <- function(y, x, new.x) {
       fit <- lm(y ~ ., data = cbind(data.frame(y = y), x))
@@ -149,24 +151,26 @@ test_that("expected NAs when there are gaps", {
                                quantile(x$x3, 0.95), length.out = 10),
                            levels(x$x5))
     colnames(v0.long) <- c("x1", "x3", "x5")
-    cate.fit <- suppressWarnings({cate(data_frame = data, learner = "dr",
-                                       x_names = paste0("x", 1:5),
-                                       y_name = "y",
-                                       a_name = "a",
-                                       v_names = c("x1", "x3", "x5"),
-                                       univariate_reg = TRUE,
-                                       partial_dependence = TRUE,
-                                       additive_approx = TRUE,
-                                       nsplits = 2,
-                                       v0.long = v0.long,
-                                       mu1.x = mu1.x,
-                                       mu0.x = mu0.x,
-                                       pi.x = pi.x,
-                                       drl.v = drl.v,
-                                       drl.x = drl.x,
-                                       cond.dens = cond.dens,
-                                       cate.w = cate.w,
-                                       bw.stage2 = list(0.05, 0.05, NULL))})
+    cate.fit <- suppressWarnings({
+      cate(data_frame = data, learner = "dr",
+           x_names = paste0("x", 1:5),
+           y_name = "y",
+           a_name = "a",
+           v_names = c("x1", "x3", "x5"),
+           univariate_reg = TRUE,
+           partial_dependence = TRUE,
+           additive_approx = TRUE,
+           nsplits = 2,
+           v0.long = v0.long,
+           mu1.x = mu1.x,
+           mu0.x = mu0.x,
+           pi.x = pi.x,
+           drl.v = drl.v,
+           drl.x = drl.x,
+           cond.dens = cond.dens,
+           cate.w = cate.w,
+           bw.stage2 = list(0.05, 0.05, NULL))
+      })
 
     expect_true(is.na(cate.fit$univariate_res$dr[[1]]$res[1, "theta"]))
     expect_true(is.na(cate.fit$univariate_res$dr[[1]]$res[1, "theta.debias"]))

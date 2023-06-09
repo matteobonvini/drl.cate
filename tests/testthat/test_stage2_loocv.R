@@ -6,9 +6,9 @@ test_that("expected behavior of second stage bw selector", {
     A <- rnorm(n, sd = 0.1)
     pseudo.out <- cos(2*pi*A) + rnorm(n)
     h <- b <- 0.95
-    res <- debiased_inference(A = A, pseudo.out = pseudo.out, 
-                              bw.seq = h, eval.pts=A, 
-                              kernel.type="epa", 
+    res <- debiased_inference(A = A, pseudo.out = pseudo.out,
+                              bw.seq = h, eval.pts=A,
+                              kernel.type="epa",
                               bandwidth.method = "LOOCV")
     idx <- which(!is.na(res$res$theta))
     if(sum(is.na(res$res$theta)) > 0) {
@@ -18,11 +18,11 @@ test_that("expected behavior of second stage bw selector", {
     preds <- rep(NA, n)
     for(j in 1:n) {
       if(is.na(res$res$theta[j])) next()
-      preds[j] <- .lprobust(x = A[-j], 
-                            y = pseudo.out[-j], 
-                            h = h, b = b, 
+      preds[j] <- .lprobust(x = A[-j],
+                            y = pseudo.out[-j],
+                            h = h, b = b,
                             eval.pt = A[j], kernel.type="epa")[, "mu.hat"]
-      
+
     }
     loocv.risk <- ifelse(mean(!is.na(preds)) <= 0.8,
                          Inf, mean((pseudo.out[idx] - preds[idx])^2))
@@ -32,6 +32,34 @@ test_that("expected behavior of second stage bw selector", {
    # print(abs(loocv.risk - res$risk$loocv.risk))
    # print(i)
   }
-  
-  
+
+})
+
+test_that("expected behavior of LOOCV additive basis", {
+
+  for(i in 1:30) {
+
+    n <- 250
+    x1 <- rnorm(n)
+    x2 <- runif(n)
+    x3 <- rbinom(n, 1, 0.5)
+    x <- data.frame(x1 = x1, x2 = x2, x3 = x3)
+    y <- rnorm(n, x1^2 + x2  + x3, 0.5)
+    dat <- cbind(y = y, x)
+    new.x <- x
+    fit <- drl.basis.additive(y, x, new.x, kmin = 1, kmax = 5)
+    fit2 <- lm(as.formula(paste0("y ", fit$drl.form)),
+               data = dat)
+    resids <- rep(NA, n)
+    for(j in 1:n) {
+
+      fit.not.j <- lm(as.formula(paste0("y ", fit$drl.form)),
+                      data = dat[-j, ])
+      resids[j] <- y[j] - predict(fit.not.j,
+                                  newdata = x[j, , drop = FALSE])
+
+    }
+    expect_true(max(abs(fit$res[, 1] - fitted(fit2))) < 1e-10)
+    expect_true(abs(min(fit$risk) - mean(resids^2)) < 1e-10)
+  }
 })

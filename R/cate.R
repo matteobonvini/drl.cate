@@ -21,7 +21,8 @@
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                  num_grid = 100, nsplits = 5, foldid = NULL, v0.long = NULL,
                  univariate_reg = FALSE, partial_dependence = FALSE,
-                 additive_approx = FALSE, bw.stage2 = NULL, ...) {
+                 additive_approx = FALSE, bw.stage2 = NULL,
+                 sample.split.cond.dens = FALSE, ...) {
 
   option <- .parse.cate(learner, ...)
 
@@ -57,7 +58,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
   pseudo.y <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                         simplify = FALSE)
-  pseudo.y.pd <- theta.bar <-
+  pseudo.y.pd <- theta.bar <- cond.dens.vals <- cate.w.vals <-
     replicate(length(learner), matrix(NA, ncol = ncol(v), nrow = n),
               simplify = FALSE)
   ites_v <- replicate(length(learner), matrix(NA, ncol = 3, nrow = n),
@@ -65,7 +66,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
   ites_x <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                       simplify = FALSE)
   names(est) <- names(est.pi) <- names( pseudo.y) <- names(ites_v) <-
-    names(ites_x) <- names(pseudo.y.pd) <- names(theta.bar) <- learner
+    names(ites_x) <- names(pseudo.y.pd) <- names(theta.bar) <-
+    names(cond.dens.vals) <- names(cate.w.vals) <- learner
 
   stage2.reg.data <- vector("list", nsplits)
   drl.form <- reg.model <- vector("list", nsplits)
@@ -97,16 +99,17 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
     # option <- list(pi.x = pi.x, mu0.x = mu0.x, mu1.x = mu1.x,
     #                drl.v = drl.v, drl.x = drl.x, cond.dens = cond.dens,
     #                cate.w = cate.w)
-    pihat <- option$pi.x(a = a.tr, x = x.tr, new.x = x.te)
+
+    pihat <- option$pi.x(a = a.tr, x = x.tr, new.x = x.te)$res
 
     if(any(learner %in% c("dr", "t"))) {
 
       mu0hat.vals <- option$mu0.x(y = y.tr, a = a.tr, x = x.tr,
-                                  new.x = rbind(x.te, x.tr))
+                                  new.x = rbind(x.te, x.tr))$res
       mu0hat <- mu0hat.vals[1:n.te]
 
       mu1hat.vals <- option$mu1.x(y = y.tr, a = a.tr, x = x.tr,
-                                  new.x = rbind(x.te, x.tr))
+                                  new.x = rbind(x.te, x.tr))$res
       mu1hat <- mu1hat.vals[1:n.te]
 
     }
@@ -163,25 +166,30 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             w.tr <- cbind(v1j = v1.j.tr, v2.not.v1.j.tr)
             w.te <-  cbind(v1j = v1.j.te, v2.not.v1.j.te)
 
-            cond.dens.fit <- option$cond.dens(v1 = v1.j.tr, v2 = v2.not.v1.j.tr)
-            cond.dens.vals.te <- cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
-                                                                 v2 = v2.not.v1.j.tr,
-                                                                 new.v1 = v1.j.te,
-                                                                 new.v2 = v2.not.v1.j.te)
-
-            if(sum(cond.dens.vals.te < 0.01) > 0) {
-              warning(paste0("Effect modifier # ", j, ". There are ", sum(cond.dens.vals.te < 0.01),
-                      " conditional density values < 0.01. They will ",
-                      "truncated at 0.01."))
-              cond.dens.vals.te[cond.dens.vals.te < 0.01] <- 0.01
+            if(sample.split.cond.dens){
+              cond.dens.fit <- option$cond.dens(v1 = v1.j.tr,
+                                                v2 = v2.not.v1.j.tr)
+              cond.dens.vals[[alg]][test.idx, j] <-
+                cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
+                                                v2 = v2.not.v1.j.tr,
+                                                new.v1 = v1.j.te,
+                                                new.v2 = v2.not.v1.j.te)
+              if(sum(cond.dens.vals.te < 0.001) > 0) {
+                warning(paste0("Effect modifier # ", j, ". There are ", sum(cond.dens.vals.te < 0.01),
+                               " conditional density values < 0.01. They will ",
+                               "truncated at 0.01."))
+                cond.dens.vals.te[cond.dens.vals.te < 0.001] <- 0.01
+              }
             }
 
+            # print(range(1/cond.dens.vals.te))
             cate.tr <- mu1hat.vals[-c(1:n.te)] - mu0hat.vals[-c(1:n.te)]
 
             cate.w.fit[[j]][[k]] <- option$cate.w(tau = cate.tr, w = w.tr,
                                                   new.w = w.tr)
 
             cate.w.te <- cate.w.fit[[j]][[k]]$fit(new.w = w.te)
+            cate.w.vals[[alg]][test.idx, j] <- cate.w.te
 
             if(n.te > 1000) {
 
@@ -191,32 +199,45 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                 v1.j.seq <- seq(min(v1.j.te), max(v1.j.te), length.out = 100)
               }
 
-              tmp.cond.dens.fn <- Vectorize(function(u) {
-                mean(cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
-                                                     v2 = v2.not.v1.j.tr,
-                                                     new.v1 = u,
-                                                     new.v2 = v2.not.v1.j.te))
-              }, vectorize.args = "u")
+              # tmp.cond.dens.fn <- Vectorize(function(u) {
+              #   mean(cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
+              #                                        v2 = v2.not.v1.j.tr,
+              #                                        new.v1 = u,
+              #                                        new.v2 = v2.not.v1.j.te))
+              # }, vectorize.args = "u")
+
+              # tmp.cond.dens.fn <- Vectorize(function(u) {
+              #   mean(cond.dens.fit$predict.cond.dens(v1 = v[, j],
+              #                                        v2 = v[, -j, drop = FALSE],
+              #                                        new.v1 = u,
+              #                                        new.v2 = v[, -j, drop = FALSE]))
+              # }, vectorize.args = "u")
 
               tmp.cate.w.fit.fn <- Vectorize(function(u) {
                 mean(cate.w.fit[[j]][[k]]$fit(new.w = cbind(v1j = u,
                                                             v2.not.v1.j.te)))
               }, vectorize.args = "u")
 
-              marg.dens.vals <- tmp.cond.dens.fn(v1.j.seq)
+              # marg.dens.vals <- tmp.cond.dens.fn(v1.j.seq)
               cate.w.avg.vals <- tmp.cate.w.fit.fn(v1.j.seq)
               if(is.factor(v1.j.te)) {
-                names(marg.dens.vals) <- v1.j.seq
-                marg.dens <- theta.bar.vals <- rep(NA, length(v1.j.te))
+                # names(marg.dens.vals) <- v1.j.seq
+                # marg.dens <- theta.bar.vals <- rep(NA, length(v1.j.te))
+                theta.bar.vals <- rep(NA, length(v1.j.te))
                 for(u in levels(v1.j.te)) {
-                  marg.dens[v1.j.te == u] <-
-                    marg.dens.vals[names(marg.dens.vals) == u]
+                  # marg.dens[v1.j.te == u] <-
+                  #   marg.dens.vals[names(marg.dens.vals) == u]
                   theta.bar.vals[v1.j.te == u] <-
-                    cate.w.avg.vals[names(marg.dens.vals) == u]
+                    cate.w.avg.vals[v1.j.seq == u]
                 }
               } else {
-                marg.dens <- approx(x = as.numeric(v1.j.seq), y = marg.dens.vals,
-                                    xout = v1.j.te)$y
+                # marg.dens <- approx(x = as.numeric(v1.j.seq), y = marg.dens.vals,
+                #                     xout = v1.j.te)$y
+                # marg.dens <- approx(x = as.numeric(v1.j.seq), y = marg.dens.vals,
+                #                     xout = v[, j], rule = 2)$y
+                # marg.dens2 <- ks::kde(x = v[, j],
+                #                       eval.points = v[, j],
+                #                       density = TRUE)
                 theta.bar.vals <- approx(x = v1.j.seq, y = cate.w.avg.vals,
                                          xout = v1.j.te, rule = 2)$y
               }
@@ -225,14 +246,17 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
               w.long.test <- cbind(v1j = rep(v1.j.te, each = n.te),
                                    v2.not.v1.j.te[rep(1:n.te, n.te), ,
                                                   drop = FALSE])
-              cond.dens.preds <-
-                cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
-                                                v2 = v2.not.v1.j.tr,
-                                                new.v1 = w.long.test[, 1],
-                                                new.v2 = w.long.test[, -1, drop = FALSE])
+              if(sample.split.cond.dens) {
+                cond.dens.preds <-
+                  cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
+                                                  v2 = v2.not.v1.j.tr,
+                                                  new.v1 = w.long.test[, 1],
+                                                  new.v2 = w.long.test[, -1, drop = FALSE])
 
-              marg.dens <- colMeans(matrix(cond.dens.preds, ncol = n.te,
-                                           nrow = n.te))
+                marg.dens <- colMeans(matrix(cond.dens.preds, ncol = n.te,
+                                             nrow = n.te))
+              }
+
 
               cate.preds <- cate.w.fit[[j]][[k]]$fit(new.w = w.long.test)
 
@@ -242,18 +266,22 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             }
 
             theta.bar[[alg]][test.idx, j] <- theta.bar.vals
-            ghat <- marg.dens / cond.dens.vals.te
-            pseudo.y.pd.vals <- (pseudo - cate.w.te) * ghat + theta.bar.vals
-            pseudo.y.pd[[alg]][test.idx, j] <- pseudo.y.pd.vals
+            # ghat <- marg.dens / cond.dens.vals.te
+            # pseudo.y.pd.vals <- (pseudo - cate.w.te) * ghat + theta.bar.vals
 
-            data.pd <- data.frame(pseudo.pd = pseudo.y.pd.vals,
-                                  pseudo.cate = pseudo,
+            # fit <- locpol::locpol(y ~ x, data = data.frame(y = pseudo.y.pd.vals,
+            #                             x = v[, j]))
+            # pseudo.y.pd[[alg]][test.idx, j] <- pseudo.y.pd.vals
+            # pseudo.y.pd[[alg]][, j] <- pseudo.y.pd.vals
+
+            # data.pd <- data.frame(pseudo.pd = pseudo.y.pd.vals,
+            data.pd <- data.frame(pseudo.cate = pseudo,
                                   mu1hat = mu1hat,
                                   mu0hat = mu0hat,
                                   pihat = pihat,
                                   tauhat.w = cate.w.te,
-                                  marg.dens = marg.dens,
-                                  cond.dens = cond.dens.vals.te,
+                                  # marg.dens = marg.dens,
+                                  # cond.dens = cond.dens.vals.te,
                                   theta.bar = theta.bar.vals,
                                   y = y.te,
                                   a = a.te,
@@ -263,8 +291,6 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
           }
         }
-
-
       } else if(alg == "t"){
         if(all(colnames(x) %in% colnames(v))) {
           next # no need to smooth the t-learner if V = X
@@ -297,6 +323,38 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
         is.var.factor <-
           paste0(class(vj), collapse = " ") %in% c("factor", "ordered factor")
 
+        if(partial_dependence) {
+
+          if(!sample.split.cond.dens) {
+            cond.dens.fit <- option$cond.dens(v1 = v[, j],
+                                              v2 = v[, -j, drop = FALSE])
+            cond.dens.vals[[alg]][, j] <-
+              cond.dens.fit$predict.cond.dens(v1 = v[, j],
+                                              v2 = v[, -j, drop = FALSE],
+                                              new.v1 = v[, j],
+                                              new.v2 = v[, -j, drop = FALSE])
+
+            if(sum(cond.dens.vals[[alg]][, j] < 0.001) > 0) {
+              warning(paste0("Effect modifier # ", j, ". There are ",
+                             sum(cond.dens.vals[[alg]][, j] < 0.001),
+                             " conditional density values < 0.001. They will ",
+                             "truncated at 0.001."))
+              cond.dens.vals[[alg]][cond.dens.vals[[alg]][, j] < 0.001, j] <- 0.001
+            }
+
+          }
+          if(is.var.factor) {
+            marg.dens <- rep(NA, length(vj))
+            for(u in levels(vj)) marg.dens[vj == u] <- mean(vj == u)
+          } else {
+            marg.dens <- ks::kde(x = v[, j], eval.points = v[, j],
+                                 density = TRUE)$estimate
+          }
+          ghat <- marg.dens / cond.dens.vals[[alg]][, j]
+          pseudo.y.pd[[alg]][, j] <-
+            (pseudo.y[[alg]][, 1] - cate.w.vals[[alg]][, j]) * ghat +
+            theta.bar[[alg]][, j]
+        }
         if(length(unique(vj)) < 15 | is.var.factor) {
           if(univariate_reg) {
             univariate_res[[alg]][[j]] <-
@@ -351,6 +409,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             pd_res[[alg]][[j]] <-
               list(
                 data = data.frame(pseudo = pseudo.y.pd[[alg]][, j],
+                                  cond.dens.vals = cond.dens.vals[[alg]][, j],
                                   exposure = vj),
                 res = fit_debias_inf$res,
                 risk = fit_debias_inf$risk

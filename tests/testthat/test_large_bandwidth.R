@@ -10,16 +10,18 @@ test_that("expected results in simple linear second-stage model", {
   x$x5 <- factor(sample(4:6, n, replace = TRUE), levels = c(4,5,6))
   colnames(x) <- paste0("x", 1:5)
 
-  pi.x <- function(a, x, new.x) return(rep(0.5, nrow(new.x)))
+  pi.x <- function(a, x, new.x) {
+    return(list(res = rep(0.5, nrow(new.x))))
+  }
   mu1.x <- function(y, a, x, new.x) {
     mm <- model.matrix(as.formula("~."), new.x)
     beta <- c(0, rep(1, ncol(mm) -1))
-    return(mm %*% beta)
+    return(list(res = mm %*% beta))
   }
   mu0.x <- function(y, a, x, new.x) {
     mm <- model.matrix(as.formula("~."), new.x)
     beta <- c(0, rep(0.5, ncol(mm) - 1))
-    return(mm %*% beta)
+    return(list(res = mm %*% beta))
   }
   drl.v <- function(y, x, new.x) {
     fit <- lm(y ~ ., data = cbind(data.frame(y = y), x))
@@ -29,19 +31,29 @@ test_that("expected results in simple linear second-stage model", {
 
   drl.x <- drl.v
 
+  # cond.dens <- function(v1, v2) {
+  #   probs.fit <- nnet::multinom("y ~ .", data = cbind(data.frame(y = v1), v2))
+  #   n.lvl <- length(levels(v1))
+  #   fit <- function(v1, v2, new.v1, new.v2) {
+  #     preds <- predict(probs.fit, newdata = cbind(data.frame(y = new.v1), new.v2),
+  #                      type = "probs")
+  #     preds.t <- t(preds)
+  #
+  #     if(n.lvl == 2) preds.t <- rbind(1-preds, preds.t)
+  #
+  #     tmp <- matrix(rep(new.v1, each = n.lvl), byrow = FALSE, ncol = length(new.v1), nrow = n.lvl)
+  #     tmp2 <- matrix(levels(v1), byrow = FALSE, ncol = length(new.v1), nrow = n.lvl)
+  #     return(preds.t[which(tmp == tmp2, arr.ind = TRUE)])
+  #   }
+  #   out <- list(predict.cond.dens = fit)
+  #   return(out)
+  # }
+
   cond.dens <- function(v1, v2) {
-    probs.fit <- nnet::multinom("y ~ .", data = cbind(data.frame(y = v1), v2))
-    n.lvl <- length(levels(v1))
     fit <- function(v1, v2, new.v1, new.v2) {
-      preds <- predict(probs.fit, newdata = cbind(data.frame(y = new.v1), new.v2),
-                       type = "probs")
-      preds.t <- t(preds)
-
-      if(n.lvl == 2) preds.t <- rbind(1-preds, preds.t)
-
-      tmp <- matrix(rep(new.v1, each = n.lvl), byrow = FALSE, ncol = length(new.v1), nrow = n.lvl)
-      tmp2 <- matrix(levels(v1), byrow = FALSE, ncol = length(new.v1), nrow = n.lvl)
-      return(preds.t[which(tmp == tmp2, arr.ind = TRUE)])
+      preds <- rep(NA, length(new.v1))
+      for(u in unique(new.v1)) preds[new.v1 == u] <- mean(new.v1 == u)
+      return(preds)
     }
     out <- list(predict.cond.dens = fit)
     return(out)
@@ -77,8 +89,8 @@ test_that("expected results in simple linear second-stage model", {
                    bw.stage2 = NULL)
 
   foldid <- cate.fit$foldid
-  mu1hat <- mu1.x(y, a, x, x)
-  mu0hat <- mu0.x(y, a, x, x)
+  mu1hat <- mu1.x(y, a, x, x)$res
+  mu0hat <- mu0.x(y, a, x, x)$res
   true.pseudo <- a / 0.5 * (y - mu1hat) + mu1hat -
     (1-a) / 0.5 * (y - mu0hat) - mu0hat
 
