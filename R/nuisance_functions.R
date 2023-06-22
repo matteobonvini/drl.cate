@@ -36,7 +36,7 @@ get_input <- function(data, x_names, y_name, a_name, v_names, v0.long, num_grid 
     }
   }
 
-  v0.long <- expand.grid(v0)
+  if(is.null(v0.long)) v0.long <- expand.grid(v0)
 
   res <- list(a = a, y = y, x = x, v = v, v0 = v0, v0.long = v0.long)
   return(res)
@@ -354,11 +354,13 @@ drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
   risk <- models <- rep(NA, nrow(n.basis))
   for(i in 1:nrow(n.basis)){
     if(ncol(x.cont) > 0) {
-      lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
+      # lm.form <- paste0("~ ", paste0("ns(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
+      lm.form <- paste0("~ ", paste0("ns(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
       if(ncol(x.cont) > 1) {
         for(k in 2:ncol(x.cont)) {
-          lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
-        }
+          # lm.form <- c(lm.form, paste0("ns(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
+          lm.form <- c(lm.form, paste0("ns(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
+          }
       }
     }
     if(ncol(x.disc) > 0) {
@@ -376,6 +378,7 @@ drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
     # x.mat <- model.matrix(as.formula(lm.form), data = x)
     # hat.mat <- x.mat %*% solve(crossprod(x.mat, x.mat)) %*% t(x.mat)
     diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
+    # diag.hat.mat <- diag(hat.mat)
     risk[i] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
     models[i] <- lm.form
   }
