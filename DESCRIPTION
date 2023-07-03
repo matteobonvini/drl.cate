@@ -22,3 +22,4 @@ Collate:
     'debiased_inference_fns.R'
     'get_pseudo_outcome.R'
     'CD.SuperLearner.R'
+    'VIMP.R'
