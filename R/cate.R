@@ -462,7 +462,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
       vimp_df <- get_VIMP(tau_hat, pseudo_hat, x, v_names)
       draw_VIMP(vimp_df)
     } else{
-      vimp_df <- data.frame(matrix(ncol = 4, nrow = ncol(v_names)))
+      vimp_df <- data.frame(matrix(ncol = 4, nrow = length(v_names)))
     }
   }
 
