@@ -440,6 +440,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                          newdata = new.dat.additive)
           m <- model.frame(tt, new.dat.additive)
           design.mat <- model.matrix(tt, m)
+          design.mat[, apply(design.mat, 2, function(u) length(unique(u)) == 1)] <- 0
           beta.vcov <- sandwich::vcovHC(additive_model$model)
           sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
 
