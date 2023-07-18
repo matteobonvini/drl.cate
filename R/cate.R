@@ -21,7 +21,7 @@
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                  num_grid = 100, nsplits = 5, foldid = NULL, v0.long = NULL,
                  univariate_reg = FALSE, partial_dependence = FALSE,
-                 additive_approx = FALSE, bw.stage2 = NULL,
+                 additive_approx = FALSE, variable_importance = FALSE, bw.stage2 = NULL,
                  sample.split.cond.dens = FALSE, ...) {
 
   option <- .parse.cate(learner, ...)
@@ -454,6 +454,16 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
         }
       }
     }
+
+    if(variable_importance){
+      print('start calculating vimp')
+      tau_hat <- ites_x[[alg]][,1]
+      pseudo_hat <- pseudo.y[[alg]]
+      vimp_df <- get_VIMP(tau_hat, pseudo_hat, x, v_names)
+      draw_VIMP(vimp_df)
+    } else{
+      vimp_df <- data.frame(matrix(ncol = 4, nrow = length(v_names)))
+    }
   }
 
 
@@ -483,7 +493,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
               univariate_res = univariate_res,
               pd_res = pd_res,
               additive_res = additive_res,
-              foldid = s)
+              foldid = s, vimp_df = vimp_df)
   return(ret)
 }
 
