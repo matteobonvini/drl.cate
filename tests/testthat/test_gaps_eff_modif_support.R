@@ -150,7 +150,7 @@ test_that("expected NAs when there are gaps", {
                            seq(quantile(x$x3, 0.05),
                                quantile(x$x3, 0.95), length.out = 10),
                            levels(x$x5))
-    colnames(v0.long) <- c("x1", "x3", "x5")
+    colnames(v0.long) <- c("v1", "v2", "v3")
     cate.fit <- suppressWarnings({
       cate(data_frame = data, learner = "dr",
            x_names = paste0("x", 1:5),

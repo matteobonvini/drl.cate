@@ -253,8 +253,6 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   if (is.null(eval.pts)){
     eval.pts <- seq(quantile(A, 0.05), quantile(A, 0.95),
                     length.out=min(30, length(unique(A))))
-    # eval.pts <- seq(min(A), max(A),
-    #                 length.out = min(30, length(unique(A))))
   }
   # Compute bandwidth ---------------------------------------------------------
   # if(control$bandwidth.method == "LOOCV"){
@@ -271,8 +269,6 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   } else if(control$bandwidth.method == "LOOCV(h=b)"){
     bw.seq.h <- bw.seq.b <- bw.seq
   } else stop("Specify a valid bandwidth method.")
-
-
 
   risk <- mapply(function(h, b){
     count.pts.nearby <- Vectorize(function(u){
@@ -301,29 +297,15 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   risk <- do.call(rbind, risk)
   risk$h <- bw.seq.h
   risk$b <- bw.seq.b
-  h.opt.debias <- bw.seq.h[which.min(risk[, "loocv.risk.debias"])]
-  b.opt.debias <- bw.seq.b[which.min(risk[, "loocv.risk.debias"])]
   h.opt <- bw.seq.h[which.min(risk[, "loocv.risk"])]
   b.opt <- bw.seq.b[which.min(risk[, "loocv.risk"])]
-  # else if(control$bandwidth.method == "LOOCV(h=b)"){
-  #   if (is.null(control$bw.seq)){
-  #     bw.seq <- seq(0.1*n^{-1/5}, 1*n^{-1/5}, length.out = 50)
-  #   }
-  #   else{
-  #     bw.seq <- control$bw.seq
-  #   }
-  #   risk <- mapply(function(h, b){
-  #     .robust.loocv(A, pseudo.out, h, b, debias, eval.pt=eval.pts,
-  #                   kernel.type=kernel.type)}, bw.seq, bw.seq)
-  #   h.opt <- bw.seq[which.min(risk)]
-  #   b.opt <- bw.seq[which.min(risk)]
-  # }
-  # else{
-  #   h.opt <- lpbwselect(pseudo.out, A, eval=eval.pts,
-  #                       bwselect="imse-dpi")$bws[,2]
-  #   b.opt <- h.opt/tau
-  # }
-
+  if(control$bandwidth.method == "LOOCV(h=b)") {
+    h.opt.debias <- h.opt
+    b.opt.debias <- b.opt
+  } else {
+    h.opt.debias <- bw.seq.h[which.min(risk[, "loocv.risk.debias"])]
+    b.opt.debias <- bw.seq.b[which.min(risk[, "loocv.risk.debias"])]
+  }
   # Fit debiased local linear regression --------------------------------------
   est.res <- matrix(NA, ncol = 4, nrow = length(eval.pts),
                     dimnames = list(NULL,
@@ -332,9 +314,10 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
                            function(u) {
                              length(unique(A[.kern((A - u) / min(h.opt, b.opt), kernel.type) > 1e-6])) > 4 })
   good.eval.pts.h.opt <- eval.pts[good.pts.h.opt]
-  est.res[good.pts.h.opt, ] <- .lprobust(A, pseudo.out, h.opt, b.opt,
-                                         eval=good.eval.pts.h.opt,
-                                         kernel.type=kernel.type)
+  est.res[good.pts.h.opt, ] <- .lprobust(x = A, y = pseudo.out,
+                                         h = h.opt, b = b.opt,
+                                         eval = good.eval.pts.h.opt,
+                                         kernel.type = kernel.type)
 
   # Estimate influence function sequence --------------------------------------
   rinf.fns <- mapply(function(a, h.val, b.val){
@@ -349,15 +332,23 @@ debiased_inference <- function(A, pseudo.out, tau = 1, eval.pts = NULL,
   }, good.eval.pts.h.opt, h.opt, b.opt, SIMPLIFY = FALSE)
   rif.se <- matrix(NA, ncol = 2, nrow = length(eval.pts),
                    dimnames = list(NULL, c("debiased_est", "est")))
-  rif.se[good.pts.h.opt, ] <- do.call(rbind, lapply(rinf.fns, function(u) apply(u, 2, sd)/sqrt(n)))
+  rif.se[good.pts.h.opt, ] <- do.call(rbind,
+                                      lapply(rinf.fns,
+                                             function(u) {
+                                               apply(u, 2, sd)/sqrt(n)
+                                               }))
   alpha <- control$alpha.pts
-
+  z.val <- qnorm(1-alpha/2)
   ci.ll.p.debias <- ci.ul.p.debias <- ci.ll.p <- ci.ul.p <-
     rep(NA, length(eval.pts))
-  ci.ll.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"]-qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "debiased_est"]
-  ci.ul.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"]+qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "debiased_est"]
-  ci.ll.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"]-qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "est"]
-  ci.ul.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"]+qnorm(1-alpha/2)*rif.se[good.pts.h.opt, "est"]
+  ci.ll.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"] -
+    z.val * rif.se[good.pts.h.opt, "debiased_est"]
+  ci.ul.p.debias[good.pts.h.opt] <- est.res[good.pts.h.opt,"theta.hat"] +
+    z.val * rif.se[good.pts.h.opt, "debiased_est"]
+  ci.ll.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"] -
+    z.val * rif.se[good.pts.h.opt, "est"]
+  ci.ul.p[good.pts.h.opt] <- est.res[good.pts.h.opt,"mu.hat"] +
+    z.val * rif.se[good.pts.h.opt, "est"]
 
   # Compute uniform bands by simulating GP ------------------------------------
   if(control$unif){
