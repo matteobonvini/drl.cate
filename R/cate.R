@@ -21,7 +21,8 @@
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                  num_grid = 100, nsplits = 5, foldid = NULL, v0.long = NULL,
                  univariate_reg = FALSE, partial_dependence = FALSE,
-                 additive_approx = FALSE, variable_importance = FALSE, bw.stage2 = NULL,
+                 additive_approx = FALSE, variable_importance = FALSE, vimp_num_splits = 1,
+                 bw.stage2 = NULL, 
                  sample.split.cond.dens = FALSE, ...) {
 
   option <- .parse.cate(learner, ...)

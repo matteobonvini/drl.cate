@@ -1,16 +1,17 @@
 get_VIMP <- function(tau_hat, pseudo_hat, x, var.names, 
-                     vimp_num_splits = 1, foldid = s){
+                     vimp_num_splits = 1, foldid = NULL, ...){
   # tau_hat: cate
   # pseudo_hat: pseudo outcome in stage 1
   
+  lab.var.names <- unlist(lapply(var.names,
+                                 function(x) gsub("[[:digit:]]", "", x[1])))
   VIM_df <- data.frame(matrix(nrow = length(lab.var.names), ncol = 3))
   rownames(VIM_df) <- unlist(lab.var.names)
   colnames(VIM_df) <- c('DR', 'Lower_Bound', 'Upper_Bound')
+  
   # without sample splitting
   if (vimp_num_splits == 1){
     tau_p_hat <- mean(tau_hat)
-    lab.var.names <- unlist(lapply(var.names,
-                                   function(x) gsub("[[:digit:]]", "", x[1])))
     
     for(i in 1:length(var.names)){
       keep.vars <- which(!colnames(x) %in% var.names[[i]])
@@ -39,6 +40,18 @@ get_VIMP <- function(tau_hat, pseudo_hat, x, var.names,
   
   # with sample splitting
   else {
+    print('vimp sample splitting > 1')
+    params <- list(...)
+    
+    if(is.null(foldid)) {
+      s <- sample(rep(1:nsplits, ceiling(n / nsplits))[1:n])
+    } else {
+      s <- foldid
+      nsplits <- length(unique(foldid))
+    }
+    a <- params[["a"]]
+    y <- params[["y"]]
+    
     for(k in vimp_num_splits){
       # in.idx <- k == s
       # ex.idx <- k != s
@@ -57,13 +70,13 @@ get_VIMP <- function(tau_hat, pseudo_hat, x, var.names,
       a.te <- a[test.idx]
       y.te <- y[test.idx]
       
-      if ((!is.matrix(v)) & (!is.data.frame(v))){
-        v.te <- v[test.idx]
-        v.tr <- v[train.idx]
-      } else{
-        v.te <- v[test.idx, , drop = FALSE]
-        v.tr <- v[train.idx, , drop = FALSE]
-      }
+      # if ((!is.matrix(v)) & (!is.data.frame(v))){
+      #   v.te <- v[test.idx]
+      #   v.tr <- v[train.idx]
+      # } else{
+      #   v.te <- v[test.idx, , drop = FALSE]
+      #   v.tr <- v[train.idx, , drop = FALSE]
+      # }
       
       # step 2
       pihat.vals <- option$pi.x(a = a.tr, x = x.tr, new.x = rbind(x.te, x.tr))$res
@@ -86,8 +99,8 @@ get_VIMP <- function(tau_hat, pseudo_hat, x, var.names,
         (y.tr - a.tr * mu1hat_ex - (1 - a.tr) * mu0hat_ex) + mu1hat_ex - mu0hat_ex
       
       # step3:
-      drl.res <-  option$drl.v(y = pseudo, x = v.te,
-                               new.x = rbind(v.te, v.tr))$res
+      drl.res <-  option$drl.x(y = pseudo, x = x.te,
+                               new.x = rbind(x.te, x.tr))$res
       tau_hat_in <- drl.res[1:n.te]
       tau_hat_ex <- drl.res[n.te : n.te + n.tr]
       
