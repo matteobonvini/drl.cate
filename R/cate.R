@@ -461,7 +461,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
       print('start calculating vimp')
       tau_hat <- ites_x[[alg]][,1]
       pseudo_hat <- pseudo.y[[alg]]
-      vimp_df <- get_VIMP(tau_hat, pseudo_hat, x, v_names, vimp_num_splits = 1)
+      vimp_df <- get_VIMP(tau_hat, pseudo_hat, x, y, a, v_names, 
+                          vimp_num_splits = vimp_num_splits, option = option)
       draw_VIMP(vimp_df)
     } else{
       vimp_df <- data.frame(matrix(ncol = 4, nrow = length(v_names)))

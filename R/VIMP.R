@@ -1,5 +1,5 @@
-get_VIMP <- function(tau_hat, pseudo_hat, x, var.names, 
-                     vimp_num_splits = 1, foldid = NULL, ...){
+get_VIMP <- function(tau_hat, pseudo_hat, x, y, a, var.names, 
+                     vimp_num_splits = 1, foldid = NULL, option, ...){
   # tau_hat: cate
   # pseudo_hat: pseudo outcome in stage 1
   
@@ -42,15 +42,14 @@ get_VIMP <- function(tau_hat, pseudo_hat, x, var.names,
   else {
     print('vimp sample splitting > 1')
     params <- list(...)
+    n <- length(y)
     
     if(is.null(foldid)) {
-      s <- sample(rep(1:nsplits, ceiling(n / nsplits))[1:n])
+      s <- sample(rep(1:vimp_num_splits, ceiling(n / vimp_num_splits))[1:n])
     } else {
       s <- foldid
-      nsplits <- length(unique(foldid))
+      vimp_num_splits <- length(unique(foldid))
     }
-    a <- params[["a"]]
-    y <- params[["y"]]
     
     for(k in vimp_num_splits){
       # in.idx <- k == s
@@ -77,9 +76,13 @@ get_VIMP <- function(tau_hat, pseudo_hat, x, var.names,
       #   v.te <- v[test.idx, , drop = FALSE]
       #   v.tr <- v[train.idx, , drop = FALSE]
       # }
-      
+      print('initializing x y a successfully!')
+      print(a)
       # step 2
       pihat.vals <- option$pi.x(a = a.tr, x = x.tr, new.x = rbind(x.te, x.tr))$res
+      
+      print('calculating pi successfully!')
+      
       pihat_in <- pihat.vals[1:n.te]
       pihat_ex <- pihat.vals[n.te:n.te + n.tr]
       
@@ -92,6 +95,7 @@ get_VIMP <- function(tau_hat, pseudo_hat, x, var.names,
                                   new.x = rbind(x.te, x.tr))$res
       mu1hat_in <- mu1hat.vals[1:n.te]
       mu1hat_ex <- mu1hat.vals[n.te:n.te + n.tr]
+      print('calculating muhat successfully!')
       
       pseudo_hat_in <- (a.te - pihat_in) / (pihat_in * (1 - pihat_in)) *
         (y.te - a.te * mu1hat_in - (1 - a.te) * mu0hat_in) + mu1hat_in - mu0hat_in
@@ -99,12 +103,13 @@ get_VIMP <- function(tau_hat, pseudo_hat, x, var.names,
         (y.tr - a.tr * mu1hat_ex - (1 - a.tr) * mu0hat_ex) + mu1hat_ex - mu0hat_ex
       
       # step3:
-      drl.res <-  option$drl.x(y = pseudo, x = x.te,
+      drl.res <-  option$drl.x(y = pseudo_hat_in, x = x.te,
                                new.x = rbind(x.te, x.tr))$res
       tau_hat_in <- drl.res[1:n.te]
       tau_hat_ex <- drl.res[n.te : n.te + n.tr]
       
       # step4:
+      # TODO: add for loop for var.names
       keep.vars <- which(!colnames(x) %in% var.names[[i]])
       fit <- drl.ite(tau_hat_in, x = x.tr[, keep.vars, drop = FALSE],
                      new.x = x.te[, keep.vars, drop = FALSE])
