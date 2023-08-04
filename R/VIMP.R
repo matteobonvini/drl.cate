@@ -1,3 +1,11 @@
+#' CATE
+#'
+#' This function calculates Variable IMPortance measures following the procedure
+#' in Hines et al (2022) https://arxiv.org/pdf/2204.06030.pdf
+#'
+#' @param cate.fit object from fitting the cate using drl.cate
+#'
+#' @export
 get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
                      x = NULL, y = NULL, a = NULL,
                      nsplits = NULL, pi.x = NULL, mu1.x = NULL, mu0.x = NULL,
