@@ -18,6 +18,8 @@ cate(
   univariate_reg = FALSE,
   partial_dependence = FALSE,
   additive_approx = FALSE,
+  variable_importance = FALSE,
+  vimp_num_splits = 1,
   bw.stage2 = NULL,
   sample.split.cond.dens = FALSE,
   ...

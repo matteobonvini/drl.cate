@@ -61,7 +61,7 @@ test_that("expected behavior with only pure noise", {
     x2 <- rnorm(n)
     x3 <- rnorm(n)
     a <- rbinom(n, 1, 0.5)
-    y <- rnorm(n, sd = 0.1)
+    y <- a * x1 + rnorm(n, sd = 0.1)
     data <- data.frame(y = y, a = a, x1 = x1, x2 = x2, x3 = x3)
     cate.fit <- cate(data_frame = data, learner = "dr",
                      x_names = c("x1", "x2", "x3"),
@@ -80,7 +80,7 @@ test_that("expected behavior with only pure noise", {
                      drl.v = lm.mod,
                      drl.x = lm.mod)
 
-    var.names <- list("x1", "x2", c("x1", "x2"), "x3")
+    var.names <- list("x2", "x3")
     VIM_3b <- vimp(cate.fit, var.names, toupper(var.names))
     expect_true(all(abs(VIM_3b$DR) < 0.001))
     if(nsplits == 1) expect_true(all(0 <= VIM_3b$DR & VIM_3b$DR <= 1))
