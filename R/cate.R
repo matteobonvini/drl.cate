@@ -58,6 +58,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
   pseudo.y <- replicate(length(learner), matrix(NA, ncol = 1, nrow = n),
                         simplify = FALSE)
+  pseudo.y.tr <- ites.x.tr <- replicate(length(learner), vector("list", nsplits),
+                           simplify = FALSE)
   pseudo.y.pd <- theta.bar <- cond.dens.vals <- cate.w.vals <-
     replicate(length(learner), matrix(NA, ncol = ncol(v), nrow = n),
               simplify = FALSE)
@@ -67,7 +69,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                       simplify = FALSE)
   names(est) <- names(est.pi) <- names( pseudo.y) <- names(ites_v) <-
     names(ites_x) <- names(pseudo.y.pd) <- names(theta.bar) <-
-    names(cond.dens.vals) <- names(cate.w.vals) <- learner
+    names(cond.dens.vals) <- names(cate.w.vals) <- names( pseudo.y.tr) <- learner
 
   stage2.reg.data <- vector("list", nsplits)
   drl.form <- reg.model <- vector("list", nsplits)
@@ -100,18 +102,20 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
     #                drl.v = drl.v, drl.x = drl.x, cond.dens = cond.dens,
     #                cate.w = cate.w)
 
-    pihat <- option$pi.x(a = a.tr, x = x.tr, new.x = x.te)$res
-
+    pihat.vals <- option$pi.x(a = a.tr, x = x.tr,
+                              new.x = rbind(x.te, x.tr))$res
+    pihat <- pihat.vals[1:n.te]
+    pihat.tr <- pihat.vals[-c(1:n.te)]
     if(any(learner %in% c("dr", "t"))) {
 
       mu0hat.vals <- option$mu0.x(y = y.tr, a = a.tr, x = x.tr,
                                   new.x = rbind(x.te, x.tr))$res
       mu0hat <- mu0hat.vals[1:n.te]
-
+      mu0hat.tr <-  mu0hat.vals[-c(1:n.te)]
       mu1hat.vals <- option$mu1.x(y = y.tr, a = a.tr, x = x.tr,
                                   new.x = rbind(x.te, x.tr))$res
       mu1hat <- mu1hat.vals[1:n.te]
-
+      mu1hat.tr <-  mu1hat.vals[-c(1:n.te)]
     }
 
     if(any(learner %in% c("u", "r"))) {
@@ -126,6 +130,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
         pseudo <- (a.te - pihat) / (pihat * (1 - pihat)) *
           (y.te - a.te * mu1hat - (1 - a.te) * mu0hat) + mu1hat - mu0hat
+
+        pseudo.tr <- (a.tr - pihat.tr) / (pihat.tr * (1 - pihat.tr)) *
+          (y.tr - a.tr * mu1hat.tr - (1 - a.tr) * mu0hat.tr) +
+          mu1hat.tr - mu0hat.tr
 
         drl.res <-  option$drl.v(y = pseudo, x = v.te,
                                  new.x = rbind(v0.long, v.te))
@@ -144,14 +152,16 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
         drl.vals <-  as.matrix(drl.res$res)
         drl.vals.pi <-  as.matrix(drl.res.pi$res)
-        drl.vals.x <- as.matrix(option$drl.x(y = pseudo, x = x.te,
-                                             new.x = x.te)$res)
+        drl.vals.x <- as.matrix(option$drl.x(y = pseudo.tr, x = x.tr,
+                                             new.x = rbind(x.te, x.tr))$res)
 
         est[[alg]][, , k] <- drl.vals[1:n.eval.pts, ]
         est.pi[[alg]][, , k] <- drl.vals.pi[1:n.eval.pts, ]
         pseudo.y[[alg]][test.idx, 1] <- pseudo
+        pseudo.y.tr[[alg]][[k]] <- pseudo.tr
+        ites.x.tr[[alg]][[k]] <- drl.vals.x[-c(1:n.te), 1]
         ites_v[[alg]][test.idx, ] <- drl.vals[-c(1:n.eval.pts), ]
-        ites_x[[alg]][test.idx, 1] <- drl.vals.x[,1]
+        ites_x[[alg]][test.idx, 1] <- drl.vals.x[1:n.te,1]
 
 
         if(partial_dependence) {
@@ -486,15 +496,18 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))
 
   ret <- list(est = out, fold_est = est, fold_est_pi = est.pi,
-              pseudo.y = pseudo.y, ites_v = ites_v,
-              ites_x = ites_x, v0.long = v0.long, v0 = v0, v = v,
+              pseudo.y = pseudo.y, pseudo.y.tr = pseudo.y.tr,
+              ites_v = ites_v, ites.x.tr = ites.x.tr, ites_x = ites_x,
+              v0.long = v0.long, v0 = v0, v = v,
               drl.form = drl.form, reg_model = reg.model,
               stage2.reg.data = stage2.reg.data,
               stage2.reg.data.pd = stage2.reg.data.pd,
               univariate_res = univariate_res,
               pd_res = pd_res,
               additive_res = additive_res,
-              foldid = s, vimp_df = vimp_df)
+              foldid = s, vimp_df = vimp_df, x = x, y = y, a = a,
+              drl.x = drl.x,
+              drl.v = drl.v)
   return(ret)
 }
 
