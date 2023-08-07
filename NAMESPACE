@@ -3,6 +3,7 @@
 export(cate)
 export(cate_lvl_set)
 export(debiased_inference)
+export(draw_VIMP)
 export(get_pseudo_outcome)
 export(get_vimp)
 export(lp_r_learner)

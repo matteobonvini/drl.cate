@@ -1,4 +1,4 @@
-#' CATE
+#' get_vimp
 #'
 #' This function calculates Variable IMPortance measures following the procedure
 #' in Hines et al (2022) https://arxiv.org/pdf/2204.06030.pdf
@@ -118,5 +118,29 @@ get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
       print(c(VIM_df[i,1], VIM_df[i,2], VIM_df[i,3], theta_s_hat, theta_p_hat))
     }
   return(VIM_df)
+}
+
+
+#' draw_VIMP
+#'
+#'Function to draw the VIMP results
+#'
+#' @param VIMP_2b a get_vimp object
+#'
+#' @export
+draw_VIMP <- function(VIM_2b){
+  VIM_2b <- cbind(as.matrix(row.names(VIM_2b), nrow(VIM_2b), 1), VIM_2b)
+  colnames(VIM_2b) <- c('variable', 'DR', 'Lower_Bound', 'Upper_Bound')
+  VIM_2b <- VIM_2b[order(VIM_2b$DR, decreasing = FALSE),]
+  order_2b <- VIM_2b$variable
+
+  fig_2b <- ggplot(VIM_2b, aes(x = factor(variable, level = order_2b), y = DR))+
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = Lower_Bound, ymax = Upper_Bound), width=.1, position=position_dodge(0.2))+
+    theme(axis.title.y=element_blank(),
+          axis.text.y = element_text(color = "grey20", size = 10),
+          axis.text.x = element_text(color = "grey20", size = 10)) +
+    coord_flip()
+  fig_2b
 }
 

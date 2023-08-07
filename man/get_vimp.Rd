@@ -2,7 +2,7 @@
 % Please edit documentation in R/VIMP.R
 \name{get_vimp}
 \alias{get_vimp}
-\title{CATE}
+\title{get_vimp}
 \usage{
 get_vimp(
   cate.fit,
