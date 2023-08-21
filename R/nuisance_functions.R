@@ -354,11 +354,11 @@ drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
   risk <- models <- rep(NA, nrow(n.basis))
   for(i in 1:nrow(n.basis)){
     if(ncol(x.cont) > 0) {
-      # lm.form <- paste0("~ ", paste0("ns(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
+      # lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
       lm.form <- paste0("~ ", paste0("ns(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
       if(ncol(x.cont) > 1) {
         for(k in 2:ncol(x.cont)) {
-          # lm.form <- c(lm.form, paste0("ns(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
+          # lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
           lm.form <- c(lm.form, paste0("ns(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
           }
       }
@@ -395,12 +395,12 @@ drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
 
 draw_VIMP <- function(vimp_df){
   # a helper function to illustrate vimp
-  
+
   vimp_df <- cbind(as.matrix(row.names(vimp_df), nrow(vimp_df), 1), vimp_df)
   colnames(vimp_df) <- c('variable', 'DR', 'Lower_Bound', 'Upper_Bound')
   vimp_df <- vimp_df[order(vimp_df$DR, decreasing = FALSE),]
   order_2b <- vimp_df$variable
-  
+
   fig_2b <- ggplot(vimp_df, aes(x = factor(variable, level = order_2b), y = DR))+
     geom_point(size = 3) +
     geom_errorbar(aes(ymin = Lower_Bound, ymax = Upper_Bound), width=.1, position=position_dodge(0.2))+

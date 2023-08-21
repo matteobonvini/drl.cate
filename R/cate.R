@@ -26,6 +26,12 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                  sample.split.cond.dens = FALSE, ...) {
 
   option <- .parse.cate(learner, ...)
+  if(length(option$cond.dens) == 1) {
+    option$cond.dens <- rep(list(option$cond.dens), length(v_names))
+  }
+  if(length(option$cate.w) == 1) {
+    option$cate.w <- rep(list(option$cate.w), length(v_names))
+  }
 
   dta <- get_input(data = data_frame, x_names = x_names, y_name = y_name,
                    a_name = a_name, v_names = v_names, v0.long = v0.long,
@@ -178,8 +184,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             w.te <-  cbind(v1j = v1.j.te, v2.not.v1.j.te)
 
             if(sample.split.cond.dens){
-              cond.dens.fit <- option$cond.dens(v1 = v1.j.tr,
-                                                v2 = v2.not.v1.j.tr)
+              cond.dens.fit <- option$cond.dens[[j]](v1 = v1.j.tr,
+                                                     v2 = v2.not.v1.j.tr)
               cond.dens.vals[[alg]][test.idx, j] <-
                 cond.dens.fit$predict.cond.dens(v1 = v1.j.tr,
                                                 v2 = v2.not.v1.j.tr,
@@ -196,8 +202,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             # print(range(1/cond.dens.vals.te))
             cate.tr <- mu1hat.vals[-c(1:n.te)] - mu0hat.vals[-c(1:n.te)]
 
-            cate.w.fit[[j]][[k]] <- option$cate.w(tau = cate.tr, w = w.tr,
-                                                  new.w = w.tr)
+            cate.w.fit[[j]][[k]] <- option$cate.w[[j]](tau = cate.tr, w = w.tr,
+                                                       new.w = w.tr)
 
             cate.w.te <- cate.w.fit[[j]][[k]]$fit(new.w = w.te)
             cate.w.vals[[alg]][test.idx, j] <- cate.w.te
@@ -337,8 +343,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
         if(partial_dependence) {
 
           if(!sample.split.cond.dens) {
-            cond.dens.fit <- option$cond.dens(v1 = v[, j],
-                                              v2 = v[, -j, drop = FALSE])
+            cond.dens.fit <- option$cond.dens[[j]](v1 = v[, j],
+                                                   v2 = v[, -j, drop = FALSE])
             cond.dens.vals[[alg]][, j] <-
               cond.dens.fit$predict.cond.dens(v1 = v[, j],
                                               v2 = v[, -j, drop = FALSE],
@@ -452,17 +458,20 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
           m <- model.frame(tt, new.dat.additive)
           design.mat <- model.matrix(tt, m)
           design.mat[, apply(design.mat, 2, function(u) length(unique(u)) == 1)] <- 0
+          preds.j.additive <-  design.mat %*% coef(additive_model$model)
           beta.vcov <- sandwich::vcovHC(additive_model$model)
           sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
 
           ci.l <- preds.j.additive - 1.96 * sqrt(sigma2hat)
           ci.u <- preds.j.additive + 1.96 * sqrt(sigma2hat)
-          additive_res[[alg]][[j]] <- data.frame(eval.pts = v0[[j]],
+          additive_res[[alg]][[j]] <- list(res = data.frame(eval.pts = v0[[j]],
                                                  theta = preds.j.additive,
                                                  ci.ll.pts = ci.l,
                                                  ci.ul.pts = ci.u,
                                                  ci.ll.unif = NA,
-                                                 ci.ul.unif = NA)
+                                                 ci.ul.unif = NA),
+                                           drl.form = additive_model$drl.form,
+                                           model = additive_model$model)
         }
       }
     }
