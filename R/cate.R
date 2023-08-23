@@ -364,7 +364,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
             marg.dens <- rep(NA, length(vj))
             for(u in levels(vj)) marg.dens[vj == u] <- mean(vj == u)
           } else {
-            marg.dens <- ks::kde(x = v[, j], eval.points = v[, j],
+            marg.dens <- ks::kde(x = vj, eval.points = vj,
                                  density = TRUE)$estimate
           }
           ghat <- marg.dens / cond.dens.vals[[alg]][, j]
