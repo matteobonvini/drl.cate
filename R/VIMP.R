@@ -11,9 +11,9 @@ get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
                      nsplits = NULL, pi.x = NULL, mu1.x = NULL, mu0.x = NULL,
                      drl.x = NULL){
   if(is.null(lab.var.names)) lab.var.names <- var.names
-  VIM_df <- data.frame(matrix(nrow = length(var.names), ncol = 3))
+  VIM_df <- data.frame(matrix(nrow = length(var.names), ncol = 5))
   rownames(VIM_df) <- unlist(lab.var.names)
-  colnames(VIM_df) <- c('DR', 'Lower_Bound', 'Upper_Bound')
+  colnames(VIM_df) <- c('psi', "theta_s", "theta_p", 'lb', 'ub')
 
   if(!is.null(cate.fit)){
     x <- cate.fit$x
@@ -111,11 +111,12 @@ get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
                   + (psi_hat - 1)*(pseudo_hat - tau_hat)^2) / theta_p_hat
       var.val <- 1/length(phi_hat)^2 * sum((phi_hat)^2)
 
-      VIM_df[i, 1] <- psi_hat
-      VIM_df[i, 2] <- max(VIM_df[i, 1] - 1.96 * sqrt(var.val), 0)
-      VIM_df[i, 3] <- min(VIM_df[i, 1] + 1.96 * sqrt(var.val), 1)
-      print(var.names[[i]])
-      print(c(VIM_df[i,1], VIM_df[i,2], VIM_df[i,3], theta_s_hat, theta_p_hat))
+      VIM_df[i, "psi"] <- psi_hat
+      VIM_df[i, "theta_s"] <- theta_s_hat
+      VIM_df[i, "theta_p"] <- theta_p_hat
+      VIM_df[i, "lb"] <- max(VIM_df[i, 1] - 1.96 * sqrt(var.val), 0)
+      VIM_df[i, "ub"] <- min(VIM_df[i, 1] + 1.96 * sqrt(var.val), 1)
+      # print(VIM_df[1:i, ])
     }
   return(VIM_df)
 }
@@ -130,7 +131,7 @@ get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
 #' @export
 draw_VIMP <- function(VIM_2b){
   VIM_2b <- cbind(as.matrix(row.names(VIM_2b), nrow(VIM_2b), 1), VIM_2b)
-  colnames(VIM_2b) <- c('variable', 'DR', 'Lower_Bound', 'Upper_Bound')
+  colnames(VIM_2b) <- c('variable', 'psi', 'lb', 'ub')
   VIM_2b <- VIM_2b[order(VIM_2b$DR, decreasing = FALSE),]
   order_2b <- VIM_2b$variable
 

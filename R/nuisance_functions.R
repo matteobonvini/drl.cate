@@ -247,6 +247,10 @@ lm.discrete.v <- function(y, x, new.x) {
     drl.x <- params[["drl.x"]]
     cate.w <- params[["cate.w"]]
     cond.dens <- params[["cond.dens"]]
+    cate.not.j <- params[["cate.not.j"]]
+    reg.basis.not.j <- params[["reg.basis.not.j"]]
+    kmin.rob <- params[["kmin.rob"]]
+    kmax.rob <- params[["kmax.rob"]]
 
     if(is.null(mu1.x)) {
       mu1.x.method <- params[["mu1.x.method"]]
@@ -307,6 +311,10 @@ lm.discrete.v <- function(y, x, new.x) {
     arg$drl.x <- drl.x
     arg$cate.w <- cate.w
     arg$cond.dens <- cond.dens
+    arg$cate.not.j <- cate.not.j
+    arg$reg.basis.not.j <- reg.basis.not.j
+    arg$kmin.rob <- kmin.rob
+    arg$kmax.rob <- kmax.rob
 
   }
 
@@ -338,6 +346,71 @@ lm.discrete.v <- function(y, x, new.x) {
   }
 
   return(arg)
+}
+
+# w <- matrix(runif(100), ncol = 1)
+# v <- runif(100)
+#
+# pseudo <- w - 2 * v + rnorm(100, sd = 0.05)
+# new.v <- c(0.2, 0.5, 0.8)
+# s <- rep(1, 100)
+robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
+                     kmin = 1, kmax = 10) {
+
+  nsplits <- length(unique(s))
+  risk <- rep(NA, kmax - kmin + 1)
+  dfs <- kmin:kmax
+  preds <- matrix(NA, ncol = length(dfs), nrow = length(new.v))
+  SL.library <- c("SL.mean", "SL.lm", "SL.polymars", "SL.gam")
+
+  for(k in 1:length(dfs)) {
+
+    res.v <- matrix(NA, nrow = length(pseudo), ncol = dfs[k])
+    res.y <- rep(NA, length(pseudo))
+
+    for(i in 1:nsplits){
+      test.idx <- i == s
+      train.idx <- i != s
+      if(all(!train.idx)) train.idx <- test.idx
+      w.tr <- w[train.idx, , drop = FALSE]
+      w.te <- w[test.idx, , drop = FALSE]
+      pseudo.tr <- pseudo[train.idx]
+      pseudo.te <- pseudo[test.idx]
+      v.tr <- v[train.idx]
+      v.te <- v[test.idx]
+
+      p.v.tr <- poly(v.tr, degree = dfs[k], raw = TRUE)
+      p.v.te <- poly(v.te, degree = dfs[k], raw = TRUE)
+
+      for(j in 1:dfs[k]){
+        # res.v[test.idx, j] <- p.v.te[, j] - SuperLearner(Y = p.v.tr[, j],
+        #                                                  X = as.data.frame(w.tr),
+        #                                                  newX = as.data.frame(w.te),
+        #                                                  SL.library = SL.library)$SL.predict[, 1]
+        res.v[test.idx, j] <- p.v.te[, j] - reg.basis.not.j(y = p.v.tr[, j],
+                                                            x = w.tr,
+                                                            new.x = w.te)
+
+      }
+      # res.y[test.idx] <- pseudo.te - SuperLearner(Y = pseudo.tr,
+      #                                             X = as.data.frame(w.tr),
+      #                                             newX = as.data.frame(w.te),
+      #                                             SL.library = SL.library)$SL.predict[, 1]
+      res.y[test.idx] <- pseudo.te - cate.not.j(y = pseudo.tr,
+                                                x = w.tr,
+                                                new.x = w.te)
+    }
+
+    fit <- lm(res.y ~ -1 + res.v)
+    diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
+    preds[, k] <- poly(new.v, degree = dfs[k], raw = TRUE) %*% coef(fit)
+    # preds[, k] <- matrix(new.v, ncol = 1) %*% coef(fit)
+    risk[k] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
+
+  }
+  # print(which.min(risk))
+  return(preds[, which.min(risk)])
+
 }
 
 

@@ -25,7 +25,7 @@ test_that("expected behavior with pure noise and signal", {
     x2 <- rnorm(n)
     x3 <- rnorm(n)
     a <- rbinom(n, 1, 0.5)
-    y <- x3 + a * (x1 + x2) + rnorm(n, sd = 0.1)
+    y <- x3 + 0.001 * a * (x1 + x2) + rnorm(n, sd = 1)
     data <- data.frame(y = y, a = a, x1 = x1, x2 = x2, x3 = x3)
     cate.fit <- cate(data_frame = data, learner = "dr",
                      x_names = c("x1", "x2", "x3"),
@@ -45,10 +45,10 @@ test_that("expected behavior with pure noise and signal", {
                      drl.x = lm.mod)
 
     var.names <- list("x1", "x2", c("x1", "x2"), "x3")
-    VIM_3b <- vimp(cate.fit, var.names, toupper(var.names))
-    expect_true(which.max(VIM_3b$DR) == 3)
-    expect_true(which.min(VIM_3b$DR) == 4)
-    if(nsplits == 1) expect_true(all(0 <= VIM_3b$DR & VIM_3b$DR <= 1))
+    VIM_3b <- get_vimp(cate.fit, var.names, toupper(var.names))
+    expect_true(which.max(VIM_3b$psi) == 3)
+    expect_true(which.min(VIM_3b$psi) == 4)
+    if(nsplits == 1) expect_true(all(0 <= VIM_3b$psi & VIM_3b$psi <= 1))
   }
 })
 
@@ -81,9 +81,9 @@ test_that("expected behavior with only pure noise", {
                      drl.x = lm.mod)
 
     var.names <- list("x2", "x3")
-    VIM_3b <- vimp(cate.fit, var.names, toupper(var.names))
-    expect_true(all(abs(VIM_3b$DR) < 0.001))
-    if(nsplits == 1) expect_true(all(0 <= VIM_3b$DR & VIM_3b$DR <= 1))
+    VIM_3b <- get_vimp(cate.fit, var.names, toupper(var.names))
+    expect_true(all(abs(VIM_3b$psi) < 0.001))
+    if(nsplits == 1) expect_true(all(0 <= VIM_3b$psi & VIM_3b$psi <= 1))
   }
 })
 

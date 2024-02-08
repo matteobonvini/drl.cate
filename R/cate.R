@@ -20,7 +20,7 @@
 
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                  num_grid = 100, nsplits = 5, foldid = NULL, v0.long = NULL,
-                 univariate_reg = FALSE, partial_dependence = FALSE,
+                 univariate_reg = FALSE, partial_dependence = FALSE, robinson = FALSE,
                  additive_approx = FALSE, variable_importance = FALSE, vimp_num_splits = 1,
                  bw.stage2 = NULL,
                  sample.split.cond.dens = FALSE, ...) {
@@ -31,6 +31,12 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
   }
   if(length(option$cate.w) == 1) {
     option$cate.w <- rep(list(option$cate.w), length(v_names))
+  }
+  if(length(option$cate.not.j) == 1) {
+    option$cate.not.j <- rep(list(option$cate.not.j), length(v_names))
+  }
+  if(length(option$reg.basis.not.j) == 1) {
+    option$reg.basis.not.j <- rep(list(option$reg.basis.not.j), length(v_names))
   }
 
   dta <- get_input(data = data_frame, x_names = x_names, y_name = y_name,
@@ -57,7 +63,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
   est <- est.pi <- replicate(length(learner),
                              array(NA, dim = c(n.eval.pts, 3, nsplits)),
                              simplify = FALSE)
-  univariate_res <- pd_res <- additive_res <-
+  univariate_res <- pd_res <- additive_res <- robinson_res <-
     replicate(length(learner), vector("list", ncol(v)), simplify = FALSE)
 
   cate.w.fit <-
@@ -328,17 +334,39 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
     if(alg != "dr") next
 
+
     if(additive_approx) {
       additive_model <- drl.basis.additive(y = pseudo.y[[alg]][, 1], x = v,
                                            new.x = v)
       tt <- delete.response(terms(additive_model$model))
     }
-    if(univariate_reg | partial_dependence | additive_approx) {
+    if(univariate_reg | partial_dependence | additive_approx | robinson) {
 
       for(j in 1:ncol(v)){
         vj <- v[, j]
         is.var.factor <-
           paste0(class(vj), collapse = " ") %in% c("factor", "ordered factor")
+
+        if(robinson) {
+
+          preds.j.robinson <- robinson(pseudo = pseudo.y[[alg]][, 1],
+                                       w = v[, -j, drop = FALSE],
+                                       v = v[, j],
+                                       new.v = v0[[j]],
+                                       s = s,
+                                       cate.not.j = option$cate.not.j[[j]],
+                                       reg.basis.not.j = option$reg.basis.not.j[[j]],
+                                       kmin = option$kmin.rob,
+                                       kmax = option$kmax.rob)
+
+          robinson_res[[alg]][[j]] <- list(res = data.frame(eval.pts = v0[[j]],
+                                                            theta = preds.j.robinson,
+                                                            ci.ll.pts = NA,
+                                                            ci.ul.pts = NA,
+                                                            ci.ll.unif = NA,
+                                                            ci.ul.unif = NA))
+
+        }
 
         if(partial_dependence) {
 
@@ -516,6 +544,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
               univariate_res = univariate_res,
               pd_res = pd_res,
               additive_res = additive_res,
+              robinson_res = robinson_res,
               foldid = s, vimp_df = vimp_df, x = x, y = y, a = a,
               drl.x = option$drl.x,
               drl.v = option$drl.v)
