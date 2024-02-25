@@ -249,8 +249,7 @@ lm.discrete.v <- function(y, x, new.x) {
     cond.dens <- params[["cond.dens"]]
     cate.not.j <- params[["cate.not.j"]]
     reg.basis.not.j <- params[["reg.basis.not.j"]]
-    kmin.rob <- params[["kmin.rob"]]
-    kmax.rob <- params[["kmax.rob"]]
+    dfs.rob <- params[["dfs"]]
 
     if(is.null(mu1.x)) {
       mu1.x.method <- params[["mu1.x.method"]]
@@ -313,8 +312,7 @@ lm.discrete.v <- function(y, x, new.x) {
     arg$cond.dens <- cond.dens
     arg$cate.not.j <- cate.not.j
     arg$reg.basis.not.j <- reg.basis.not.j
-    arg$kmin.rob <- kmin.rob
-    arg$kmax.rob <- kmax.rob
+    arg$dfs.rob <- dfs.rob
 
   }
 
@@ -355,13 +353,12 @@ lm.discrete.v <- function(y, x, new.x) {
 # new.v <- c(0.2, 0.5, 0.8)
 # s <- rep(1, 100)
 robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
-                     kmin = 1, kmax = 10) {
+                     dfs) {
 
   nsplits <- length(unique(s))
-  risk <- rep(NA, kmax - kmin + 1)
-  dfs <- kmin:kmax
-  preds <- matrix(NA, ncol = length(dfs), nrow = length(new.v))
-  SL.library <- c("SL.mean", "SL.lm", "SL.polymars", "SL.gam")
+  risk <- rep(NA, length(dfs))
+  fits <- vector("list", length = length(dfs))
+  # preds <- matrix(NA, ncol = length(dfs), nrow = length(new.v))
 
   for(k in 1:length(dfs)) {
 
@@ -401,15 +398,25 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
                                                 new.x = w.te)
     }
 
-    fit <- lm(res.y ~ -1 + res.v)
-    diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
-    preds[, k] <- poly(new.v, degree = dfs[k], raw = TRUE) %*% coef(fit)
+    fit.k <-  lm(res.y ~ -1 + res.v)
+    fits[[k]] <- fit.k
+    diag.hat.mat <- lm.influence(fit.k, do.coef = FALSE)$hat
+    # preds[, k] <- poly(new.v, degree = dfs[k], raw = TRUE) %*% coef(fit)
     # preds[, k] <- matrix(new.v, ncol = 1) %*% coef(fit)
-    risk[k] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
+    risk[k] <- mean((resid(fit.k) / (1 - diag.hat.mat))^2)
 
   }
   # print(which.min(risk))
-  return(preds[, which.min(risk)])
+  fit.star <- fits[[which.min(risk)]]
+  design.mat <- poly(new.v, degree = dfs[which.min(risk)], raw = TRUE)
+  preds <- design.mat %*% coef(fit.star)
+  beta.vcov <- sandwich::vcovHC(fit.star)
+  sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
+  ci.ll <- preds - 1.96 * sqrt(sigma2hat)
+  ci.uu <- preds + 1.96 * sqrt(sigma2hat)
+  res <- data.frame(preds = preds, ci.ll = ci.ll, ci.uu = ci.uu)
+  out <- list(res = res, model = fit.star, risk = risk)
+  return(out)
 
 }
 

@@ -349,22 +349,23 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
 
         if(robinson) {
 
-          preds.j.robinson <- robinson(pseudo = pseudo.y[[alg]][, 1],
-                                       w = v[, -j, drop = FALSE],
-                                       v = v[, j],
-                                       new.v = v0[[j]],
-                                       s = s,
-                                       cate.not.j = option$cate.not.j[[j]],
-                                       reg.basis.not.j = option$reg.basis.not.j[[j]],
-                                       kmin = option$kmin.rob,
-                                       kmax = option$kmax.rob)
+          j.robinson <- robinson(pseudo = pseudo.y[[alg]][, 1],
+                                 w = v[, -j, drop = FALSE],
+                                 v = v[, j],
+                                 new.v = v0[[j]],
+                                 s = s,
+                                 cate.not.j = option$cate.not.j[[j]],
+                                 reg.basis.not.j = option$reg.basis.not.j[[j]],
+                                 dfs = option$dfs.rob)
 
           robinson_res[[alg]][[j]] <- list(res = data.frame(eval.pts = v0[[j]],
-                                                            theta = preds.j.robinson,
-                                                            ci.ll.pts = NA,
-                                                            ci.ul.pts = NA,
+                                                            theta = j.robinson$res$preds,
+                                                            ci.ll.pts = j.robinson$res$ci.ll,
+                                                            ci.ul.pts = j.robinson$res$ci.uu,
                                                             ci.ll.unif = NA,
-                                                            ci.ul.unif = NA))
+                                                            ci.ul.unif = NA),
+                                           model = j.robinson$model,
+                                           risk = j.robinson$risk)
 
         }
 
@@ -499,7 +500,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                                  ci.ll.unif = NA,
                                                  ci.ul.unif = NA),
                                            drl.form = additive_model$drl.form,
-                                           model = additive_model$model)
+                                           model = additive_model$model,
+                                           risk = additive_model$risk)
         }
       }
     }

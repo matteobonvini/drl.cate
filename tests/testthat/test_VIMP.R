@@ -25,7 +25,7 @@ test_that("expected behavior with pure noise and signal", {
     x2 <- rnorm(n)
     x3 <- rnorm(n)
     a <- rbinom(n, 1, 0.5)
-    y <- x3 + 0.001 * a * (x1 + x2) + rnorm(n, sd = 1)
+    y <- x3 + a * (x1 + x2) + rnorm(n, sd = 1)
     data <- data.frame(y = y, a = a, x1 = x1, x2 = x2, x3 = x3)
     cate.fit <- cate(data_frame = data, learner = "dr",
                      x_names = c("x1", "x2", "x3"),

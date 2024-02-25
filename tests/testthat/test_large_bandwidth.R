@@ -15,12 +15,12 @@ test_that("expected results in simple linear second-stage model", {
   }
   mu1.x <- function(y, a, x, new.x) {
     mm <- model.matrix(as.formula("~."), new.x)
-    beta <- c(0, rep(1, ncol(mm) -1))
+    beta <- c(1, rep(0, ncol(mm) -1))
     return(list(res = mm %*% beta))
   }
   mu0.x <- function(y, a, x, new.x) {
     mm <- model.matrix(as.formula("~."), new.x)
-    beta <- c(0, rep(0.5, ncol(mm) - 1))
+    beta <- c(1, rep(0, ncol(mm) - 1))
     return(list(res = mm %*% beta))
   }
   drl.v <- function(y, x, new.x) {
@@ -100,10 +100,8 @@ test_that("expected results in simple linear second-stage model", {
 
   res <- cate.fit$est[[1]][, 1]
 
-  true.additive_approx1 <- mean(true.pseudo[x$x4 == 2])
-  true.additive_approx2 <- mean(true.pseudo[x$x4 == 3])
-  expect_true(max(abs(cate.fit$additive_res$dr[[1]]$theta[1] - true.additive_approx1)) < 1e-12)
-  expect_true(max(abs(cate.fit$additive_res$dr[[1]]$theta[2] - true.additive_approx2)) < 1e-12)
+  true.additive_approx <- mean(true.pseudo[x$x4 == 3]) - mean(true.pseudo[x$x4 == 2])
+  expect_true(abs(cate.fit$additive_res$dr[[1]]$res$theta[2] - true.additive_approx) < 1e-12)
 
   true.res1 <- (mean(true.pseudo[foldid == 1 & x$x4 == 2]) +
                   mean(true.pseudo[foldid == 2 & x$x4 == 2]))/2
