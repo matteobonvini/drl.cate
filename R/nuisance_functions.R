@@ -359,7 +359,7 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
   risk <- rep(NA, length(dfs))
   fits <- vector("list", length = length(dfs))
   # preds <- matrix(NA, ncol = length(dfs), nrow = length(new.v))
-
+  # todo: make the code below faster by only estimating E(p_j(V) | V_{-j}) once.
   for(k in 1:length(dfs)) {
 
     res.v <- matrix(NA, nrow = length(pseudo), ncol = dfs[k])
@@ -415,7 +415,7 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
   ci.ll <- preds - 1.96 * sqrt(sigma2hat)
   ci.uu <- preds + 1.96 * sqrt(sigma2hat)
   res <- data.frame(preds = preds, ci.ll = ci.ll, ci.uu = ci.uu)
-  out <- list(res = res, model = fit.star, risk = risk)
+  out <- list(res = res, model = fit.star, risk = risk, fits = fits)
   return(out)
 
 }

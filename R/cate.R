@@ -365,7 +365,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                                             ci.ll.unif = NA,
                                                             ci.ul.unif = NA),
                                            model = j.robinson$model,
-                                           risk = j.robinson$risk)
+                                           risk = j.robinson$risk,
+                                           fits = j.robinson$fits)
 
         }
 
