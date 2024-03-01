@@ -354,7 +354,6 @@ lm.discrete.v <- function(y, x, new.x) {
 # s <- rep(1, 100)
 robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
                      dfs) {
-
   nsplits <- length(unique(s))
   risk <- rep(NA, length(dfs))
   fits <- vector("list", length = length(dfs))

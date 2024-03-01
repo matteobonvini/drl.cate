@@ -113,7 +113,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
     }
     # option <- list(pi.x = pi.x, mu0.x = mu0.x, mu1.x = mu1.x,
     #                drl.v = drl.v, drl.x = drl.x, cond.dens = cond.dens,
-    #                cate.w = cate.w)
+    #                cate.w = cate.w, dfs = dfs, cate.not.j = cate.not.j,
+    #                reg.basis.not.j = reg.basis.not.j)
 
     pihat.vals <- option$pi.x(a = a.tr, x = x.tr,
                               new.x = rbind(x.te, x.tr))$res
@@ -356,7 +357,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                  s = s,
                                  cate.not.j = option$cate.not.j[[j]],
                                  reg.basis.not.j = option$reg.basis.not.j[[j]],
-                                 dfs = option$dfs.rob)
+                                 dfs = option$dfs.rob[[j]])
 
           robinson_res[[alg]][[j]] <- list(res = data.frame(eval.pts = v0[[j]],
                                                             theta = j.robinson$res$preds,
