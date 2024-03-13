@@ -20,7 +20,8 @@
 
 cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                  num_grid = 100, nsplits = 5, foldid = NULL, v0.long = NULL,
-                 univariate_reg = FALSE, partial_dependence = FALSE, robinson = FALSE,
+                 univariate_reg = FALSE, partial_dependence = FALSE,
+                 partially_linear = FALSE,
                  additive_approx = FALSE, variable_importance = FALSE, vimp_num_splits = 1,
                  bw.stage2 = NULL,
                  sample.split.cond.dens = FALSE, ...) {
@@ -88,7 +89,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
   drl.form <- reg.model <- vector("list", nsplits)
   stage2.reg.data.pd <- replicate(ncol(v), vector("list", nsplits),
                                   simplify = FALSE)
-
+  tmp <- tryCatch(
+    {
   for(k in 1:nsplits) {
     print(paste0("Considering split # ", k, " out of ", nsplits))
     test.idx <- k == s
@@ -114,7 +116,7 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
     # option <- list(pi.x = pi.x, mu0.x = mu0.x, mu1.x = mu1.x,
     #                drl.v = drl.v, drl.x = drl.x, cond.dens = cond.dens,
     #                cate.w = cate.w, dfs = dfs, cate.not.j = cate.not.j,
-    #                reg.basis.not.j = reg.basis.not.j)
+    #                reg.basis.not.j = reg.basis.not.j, dfs.rob = dfs)
 
     pihat.vals <- option$pi.x(a = a.tr, x = x.tr,
                               new.x = rbind(x.te, x.tr))$res
@@ -330,7 +332,29 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
       } else if(alg == "lp-r") next
     }
   }
-  print("Done with fitting nuisance functions.")
+  # print("Done with fitting nuisance functions.")
+      print("Done with fitting nuisance functions.")
+    },
+  error = function(cond) {
+    message(conditionMessage(cond))
+  #   each_filename <- paste0('sim_data_', as.character(n), '-',
+  #                           as.character(iter), '.rda')
+  #   each_filepath <- file.path("./debug/", each_filename)
+  #   save(data, file = each_filepath)
+  #   filename <- "/Users/matteobonvini/Dropbox/Hetero Effects/Simulations/debug/sim_foldid_"
+  #   save(s, file = paste0(filename, n, "-", iter, ".rda"))
+    NULL
+  }
+  )
+  if(is.null(tmp)){
+    print("Encountered error while fitting nuisance functions, exiting procedure.")
+    univ.res <- pd.res <- add.res <- rob.res <- data.frame(theta = rep(0, 10),
+                                                           theta.debias = rep(0, 10))
+    return(list(univariate_res = list(dr = list(list(res = univ.res))),
+                pd_res = list(dr = list(list(res = pd.res))),
+                additive_res = list(dr = list(list(res = add.res))),
+                robinson_res = list(dr = list(list(res = rob.res)))))
+  }
   for(alg in learner) {
 
     if(alg != "dr") next
@@ -341,14 +365,14 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                                            new.x = v)
       tt <- delete.response(terms(additive_model$model))
     }
-    if(univariate_reg | partial_dependence | additive_approx | robinson) {
+    if(univariate_reg | partial_dependence | additive_approx | partially_linear) {
 
       for(j in 1:ncol(v)){
         vj <- v[, j]
         is.var.factor <-
           paste0(class(vj), collapse = " ") %in% c("factor", "ordered factor")
 
-        if(robinson) {
+        if(partially_linear) {
 
           j.robinson <- robinson(pseudo = pseudo.y[[alg]][, 1],
                                  w = v[, -j, drop = FALSE],
