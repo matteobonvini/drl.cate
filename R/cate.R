@@ -347,9 +347,10 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
   }
   )
   if(is.null(tmp)){
-    print("Encountered error while fitting nuisance functions, exiting procedure.")
-    univ.res <- pd.res <- add.res <- rob.res <- data.frame(theta = rep(0, 10),
-                                                           theta.debias = rep(0, 10))
+    warning("Encountered error while fitting nuisance functions")
+    # print("Encountered error while fitting nuisance functions, exiting procedure.")
+    univ.res <- pd.res <- add.res <- rob.res <- data.frame(theta = rep(NA, 10),
+                                                           theta.debias = rep(NA, 10))
     return(list(univariate_res = list(dr = list(list(res = univ.res))),
                 pd_res = list(dr = list(list(res = pd.res))),
                 additive_res = list(dr = list(list(res = add.res))),
