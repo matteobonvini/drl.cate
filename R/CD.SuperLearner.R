@@ -1,3 +1,6 @@
+#' CD.SuperLearner
+#'
+#' @export
 ###############################################################################
 # Super-learning a conditional density
 #
@@ -200,6 +203,8 @@ CD.SuperLearner <- function(X, W, SL.library, n.folds=10,
   return(list(SL.library=SL.library, library.names=library.names, model.bins=model.bins, model.algs=model.algs, SL.density=SL.density, library.densities=library.densities, coef=coef, cv.library.densities=cv.library.densities, model.fits=save.model.fits, n.bins=n.bins, bin.breaks=bin.breaks, n.folds=n.folds, folds=folds, errors.in.library=errors.in.library))
 }
 
+#' predict.CD.SuperLearner
+#' @export
 predict.CD.SuperLearner <- function(fit, newdata, threshold=.001, verbose=FALSE) {
   model.nums <- which(fit$coef > threshold & !unlist(lapply(fit$model.fits, is.null)))
   new.coef <- fit$coef[model.nums]

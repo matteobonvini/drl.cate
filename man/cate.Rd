@@ -17,7 +17,7 @@ cate(
   v0.long = NULL,
   univariate_reg = FALSE,
   partial_dependence = FALSE,
-  robinson = FALSE,
+  partially_linear = FALSE,
   additive_approx = FALSE,
   variable_importance = FALSE,
   vimp_num_splits = 1,
