@@ -1,6 +1,7 @@
 #' CATE
 #'
 #' This function is a wrapper to estimate HTEs defined as E(Y^1 - Y^0 | V = v0)
+#' @param data_frame data frame
 #' @param v0 evaluation points, i.e. E(Y^1 - Y^0 | V = v0)
 #' @param learner string specifying which learners to use, e.g. DR-Learner.
 #' @param y vector of outcomes
@@ -22,7 +23,8 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
                  num_grid = 100, nsplits = 5, foldid = NULL, v0.long = NULL,
                  univariate_reg = FALSE, partial_dependence = FALSE,
                  partially_linear = FALSE,
-                 additive_approx = FALSE, variable_importance = FALSE, vimp_num_splits = 1,
+                 additive_approx = FALSE, variable_importance = FALSE,
+                 vimp_num_splits = 1,
                  bw.stage2 = NULL,
                  sample.split.cond.dens = FALSE, ...) {
 
@@ -337,13 +339,11 @@ cate <- function(data_frame, learner, x_names, y_name, a_name, v_names,
     },
   error = function(cond) {
     message(conditionMessage(cond))
-  #   each_filename <- paste0('sim_data_', as.character(n), '-',
-  #                           as.character(iter), '.rda')
-  #   each_filepath <- file.path("./debug/", each_filename)
-  #   save(data, file = each_filepath)
-  #   filename <- "/Users/matteobonvini/Dropbox/Hetero Effects/Simulations/debug/sim_foldid_"
-  #   save(s, file = paste0(filename, n, "-", iter, ".rda"))
-    NULL
+    # each_filename <- paste0('sim_data_', as.character(n), '-',
+    #                         as.character(iter), '.rda')
+    # save(data, file = "/Users/matteobonvini/Dropbox/Hetero Effects/Simulations/debug/dataset_error.rda")
+    # save(s, file = "/Users/matteobonvini/Dropbox/Hetero Effects/Simulations/debug/foldid_error.rda")
+    # NULL
   }
   )
   if(is.null(tmp)){
