@@ -7,7 +7,7 @@
 get_vimp(
   cate.fit,
   var.names,
-  lab.var.names = NULL,
+  lab.var.names,
   x = NULL,
   y = NULL,
   a = NULL,

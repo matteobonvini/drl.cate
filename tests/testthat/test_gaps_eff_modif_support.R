@@ -24,13 +24,17 @@ test_that("expected NAs when there are gaps", {
       beta <- c(0, rep(0.5, ncol(mm) - 1))
       return(list(res = mm %*% beta))
     }
-    drl.v <- function(y, x, new.x) {
-      fit <- lm(y ~ ., data = cbind(data.frame(y = y), x))
-      res <- cbind(predict.lm(fit, newdata = as.data.frame(new.x)), NA, NA)
+    drl.v <- function(pseudo, v, new.v) {
+      fit <- lm(y ~ ., data = cbind(data.frame(y = pseudo), v))
+      res <- cbind(predict.lm(fit, newdata = as.data.frame(new.v)), NA, NA)
       return(list(drl.form = "~ .", res = res, model = fit))
     }
 
-    drl.x <- drl.v
+    drl.x <- function(pseudo, x, new.x) {
+      fit <- lm(y ~ ., data = cbind(data.frame(y = pseudo), x))
+      res <- cbind(predict.lm(fit, newdata = as.data.frame(new.x)), NA, NA)
+      return(list(drl.form = "~ .", res = res, model = fit))
+    }
 
     cond.dens <- function(v1, v2) {
 
@@ -150,32 +154,33 @@ test_that("expected NAs when there are gaps", {
                            seq(quantile(x$x3, 0.05),
                                quantile(x$x3, 0.95), length.out = 10),
                            levels(x$x5))
-    colnames(v0.long) <- c("v1", "v2", "v3")
+    colnames(v0.long) <- c("x1", "x3", "x5")
     cate.fit <- suppressWarnings({
-      cate(data_frame = data, learner = "dr",
+      cate(data = data, learner = "dr",
            x_names = paste0("x", 1:5),
            y_name = "y",
            a_name = "a",
            v_names = c("x1", "x3", "x5"),
            univariate_reg = TRUE,
            partial_dependence = TRUE,
+           partially_linear = FALSE,
            additive_approx = TRUE,
            nsplits = 2,
-           v0.long = v0.long,
+           v0 = v0.long,
            mu1.x = mu1.x,
            mu0.x = mu0.x,
            pi.x = pi.x,
            drl.v = drl.v,
            drl.x = drl.x,
-           cond.dens = cond.dens,
-           cate.w = cate.w,
+           cond.dens = rep(list(cond.dens), 3),
+           cate.w = rep(list(cate.w), 3),
            bw.stage2 = list(0.05, 0.05, NULL))
       })
 
-    expect_true(is.na(cate.fit$univariate_res$dr[[1]]$res[1, "theta"]))
-    expect_true(is.na(cate.fit$univariate_res$dr[[1]]$res[1, "theta.debias"]))
-    expect_true(is.na(cate.fit$univariate_res$dr[[1]]$res[1, "ci.ul.pts"]))
-    expect_true(!is.na(cate.fit$univariate_res$dr[[1]]$res[2, "theta"]))
+    expect_true(is.na(cate.fit$univariate.res$dr[[1]]$res[1, "theta"]))
+    expect_true(is.na(cate.fit$univariate.res$dr[[1]]$res[1, "theta.debias"]))
+    expect_true(is.na(cate.fit$univariate.res$dr[[1]]$res[1, "ci.ul.pts"]))
+    expect_true(!is.na(cate.fit$univariate.res$dr[[1]]$res[2, "theta"]))
   }
 })
 

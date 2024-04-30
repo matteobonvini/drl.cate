@@ -5,16 +5,20 @@
 \title{CATE}
 \usage{
 cate(
-  data_frame,
+  data,
   learner,
   x_names,
   y_name,
   a_name,
   v_names,
-  num_grid = 100,
+  v0,
+  mu1.x,
+  mu0.x,
+  pi.x,
+  drl.v,
+  drl.x,
   nsplits = 5,
   foldid = NULL,
-  v0.long = NULL,
   univariate_reg = FALSE,
   partial_dependence = FALSE,
   partially_linear = FALSE,
@@ -23,35 +27,96 @@ cate(
   vimp_num_splits = 1,
   bw.stage2 = NULL,
   sample.split.cond.dens = FALSE,
-  ...
+  cond.dens = NULL,
+  cate.w = NULL,
+  cate.not.j = NULL,
+  reg.basis.not.j = NULL,
+  pl.dfs = NULL
 )
 }
 \arguments{
-\item{learner}{string specifying which learners to use, e.g. DR-Learner.}
+\item{data}{A data frame containing the dataset.}
 
-\item{nsplits}{a number indicating the number of splits used to do
-cross-fitting. Ignored if foldid is specified.}
+\item{learner}{A character string specifying which learner to use (e.g., "dr").}
 
-\item{foldid}{id vector specifying which observation belongs to which fold.}
+\item{x_names}{A character vector specifying the names of the confouding variables.}
 
-\item{v0}{evaluation points, i.e. E(Y^1 - Y^0 | V = v0)}
+\item{y_name}{A character string specifying the outcome variable.}
 
-\item{y}{vector of outcomes}
+\item{a_name}{A character string specifying the treatment variable.}
 
-\item{a}{binary vector of treatments}
+\item{v_names}{A character vector specifying the names of the effect modifiers.}
 
-\item{x}{matrix of confounders}
+\item{v0}{A matrix of evaluation points, i.e., values of V for which the CATE is estimated (E(Y^1 - Y^0 | V = v0)).}
 
-\item{v}{matrix of effect modifiers}
+\item{mu1.x}{A function taking arguments (y, a, x, new.x). It trains a model estimating
+E(Y | A = 1, X) and returns a list of 3 elements: res, model and fit. \emph{res} is a vector of predictions of the model evaluated at
+new.x, \emph{model} is the model object used to estimate E(Y | A = 1, X) and \emph{fit} is a function with argument new.x that
+returns the predictions of the model. See examples.}
+
+\item{mu0.x}{A function taking arguments (y, a, x, new.x). It trains a model estimating
+E(Y | A = 0, X) and returns a list of 3 elements: res, model and fit. \emph{res} is a vector of predictions of the model evaluated at
+new.x, \emph{model} is the model object used to estimate E(Y | A = 0, X) and \emph{fit} is a function with argument new.x that
+returns the predictions of the model. See examples.}
+
+\item{pi.x}{A function taking arguments (a, x, new.x). It trains a model estimating
+P(A = 1 | X) and returns a list of 3 elements: res, model and fit. \emph{res} is a vector of predictions of the model evaluated at
+new.x, \emph{model} is the model object used to estimate P(A = 1 | X) and \emph{fit} is a function with argument new.x that
+returns the predictions of the model. See examples.}
+
+\item{drl.v}{A function taking arguments (pseudo, v, new.v). It trains a model estimating E(Y^1 - Y^0 | V) by
+regressing a pseudo-outcome \emph{pseudo} onto v and returns a list of 3 elements: res, model and fit.
+\emph{res} is a vector of predictions of the model evaluated at new.v,
+\emph{model} is the model object used to estimate E(Y^1 - Y^0 | V) (after possibly model selection)
+and \emph{fit} is a function with argument new.v that returns the predictions of the model. See examples.
+#' @param drl.x A function taking arguments (pseudo, x, new.x). It trains a model estimating E(Y^1 - Y^0 | X) by
+regressing a pseudo-outcome \emph{pseudo} onto x and returns a list of 3 elements: res, model and fit.
+\emph{res} is a vector of predictions of the model evaluated at new.x,
+\emph{model} is the model object used to estimate E(Y^1 - Y^0 | X) (after possibly model selection)
+and \emph{fit} is a function with argument new.v that returns the predictions of the model. See examples.}
+
+\item{nsplits}{An integer indicating the number of splits used for cross-validation. Ignored if foldid is specified.}
+
+\item{foldid}{An optional vector specifying fold assignments for cross-validation.}
+
+\item{univariate_reg}{A logical indicating whether to perform univariate regression for estimating the CATE
+as a function of each effect modifier separately (default: FALSE).}
+
+\item{partial_dependence}{A logical indicating whether to compute partial dependence plots (default: FALSE).}
+
+\item{partially_linear}{A logical indicating whether to compute partially linear approximations
+via Robinson's transformation (default: FALSE).}
+
+\item{additive_approx}{A logical indicating whether to compute the CATE assuming an additive structure (default: FALSE).}
+
+\item{variable_importance}{A logical indicating whether to compute variable importance measures (default: FALSE).}
+
+\item{vimp_num_splits}{An integer specifying the number of splits for variable importance computation (default: 1).}
+
+\item{bw.stage2}{A list of length equal to the number of effect modifiers considered, where each element if a vector of
+candidate bandwidths for second-stage regression of the pseudo-outcome onto the effect modifier
+that calculates either the univariate CATE or the Partial Dependence measure (default: NULL).
+It needs to be provided if \emph{univariate_reg} or \emph{partial_dependence} is set to TRUE.}
+
+\item{sample.split.cond.dens}{A logical indicating whether to do sample-splitting for conditional density estimation
+(default: FALSE).}
+
+\item{cond.dens}{A function}
+
+\item{cate.w}{A function}
+
+\item{cate.not.j}{A function}
+
+\item{reg.basis.not.j}{A function}
+
+\item{pl.dfs}{A list of length equal to the number of effect modifiers considered, where each element is a vector of
+candidate number of basis elements for the partially linear approximation computed via Robinson trick.}
 }
 \value{
-a list containing the following components:
-\item{est}{ estimates of the CATE at v0}
-\item{fold_est}{ list of length(v0)xnsplits matrices with estimates
-of the CATE at v0 in each fold, one matrix for each learner.}
+A list containing the estimated CATE at v0 and per-fold estimates of the CATE at v0 for each learner.
 }
 \description{
-This function is a wrapper to estimate HTEs defined as E(Y^1 - Y^0 | V = v0)
+This function estimates heterogeneous treatment effects (HTEs) defined as E(Y^1 - Y^0 | V = v0).
 }
 \references{
 Kennedy, EH. (2020). Optimal Doubly Robust Estimation of

@@ -6,22 +6,21 @@
 #' @param cate.fit object from fitting the cate using drl.cate
 #'
 #' @export
-get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
+get_vimp <- function(cate.fit, var.names, lab.var.names,
                      x = NULL, y = NULL, a = NULL,
                      nsplits = NULL, pi.x = NULL, mu1.x = NULL, mu0.x = NULL,
                      drl.x = NULL){
-  if(is.null(lab.var.names)) lab.var.names <- var.names
-  VIM_df <- data.frame(matrix(nrow = length(var.names), ncol = 5))
-  rownames(VIM_df) <- unlist(lab.var.names)
+  VIM_df <- data.frame(matrix(nrow=length(var.names), ncol=5))
+  rownames(VIM_df) <- lab.var.names
   colnames(VIM_df) <- c('psi', "theta_s", "theta_p", 'lb', 'ub')
 
   if(!is.null(cate.fit)){
     x <- cate.fit$x
     n <- nrow(x)
     drl.x <- cate.fit$drl.x
-    tau_hat <- cate.fit[["ites_x"]][["dr"]][, 1]
-    pseudo_hat <- cate.fit[["pseudo.y"]][["dr"]]
-    ites.x.tr <- cate.fit[["ites.x.tr"]][["dr"]]
+    tau_hat <- cate.fit$cate.x.res[["cate.x.sample"]][["dr"]][, 1]
+    pseudo_hat <- cate.fit$cate.x.res[["pseudo"]][["dr"]]
+    ites.x.tr <- cate.fit$cate.x.res[["cate.x.sample.tr"]][["dr"]]
     foldid <- cate.fit$foldid
     nsplits <- length(unique(foldid))
   } else {
@@ -76,7 +75,7 @@ get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
 
       pseudo_hat[test.idx] <- pseudo_hat_in
 
-      drl.vals.x <- drl.x(y = pseudo_hat_ex, x = x.tr,
+      drl.vals.x <- drl.x(pseudo = pseudo_hat_ex, x = x.tr,
                           new.x = rbind(x.te, x.tr))$res
       tau_hat[test.idx] <- drl.vals.x[1:n.te, 1]
       ites.x.tr[[k]] <- drl.vals.x[-c(1:n.te), 1]
@@ -95,7 +94,7 @@ get_vimp <- function(cate.fit, var.names, lab.var.names = NULL,
         if(length(unique(foldid)) > 1) idx.tr <- k != foldid
         else idx.tr <- idx.te
 
-        fit <- drl.x(y = ites.x.tr[[k]],
+        fit <- drl.x(pseudo = ites.x.tr[[k]],
                      x = x[idx.tr, keep.vars, drop = FALSE],
                      new.x = x[idx.te, keep.vars, drop = FALSE])
         tau_s_hat[idx.te] <- fit$res[, 1]

@@ -23,13 +23,17 @@ test_that("expected results in simple linear second-stage model", {
     beta <- c(1, rep(0, ncol(mm) - 1))
     return(list(res = mm %*% beta))
   }
-  drl.v <- function(y, x, new.x) {
-    fit <- lm(y ~ ., data = cbind(data.frame(y = y), x))
-    res <- cbind(predict.lm(fit, newdata = as.data.frame(new.x)), NA, NA)
+  drl.v <- function(pseudo, v, new.v) {
+    fit <- lm(y ~ ., data = cbind(data.frame(y = pseudo), v))
+    res <- cbind(predict.lm(fit, newdata = as.data.frame(new.v)), NA, NA)
     return(list(drl.form = "~ .", res = res, model = fit))
   }
 
-  drl.x <- drl.v
+  drl.x <- function(pseudo, x, new.x) {
+    fit <- lm(y ~ ., data = cbind(data.frame(y = pseudo), x))
+    res <- cbind(predict.lm(fit, newdata = as.data.frame(new.x)), NA, NA)
+    return(list(drl.form = "~ .", res = res, model = fit))
+  }
 
   # cond.dens <- function(v1, v2) {
   #   probs.fit <- nnet::multinom("y ~ .", data = cbind(data.frame(y = v1), v2))
@@ -70,11 +74,12 @@ test_that("expected results in simple linear second-stage model", {
 
   data <- cbind(data.frame(y = y, a = a), x)
 
-  cate.fit <- cate(data_frame = data, learner = "dr",
+  cate.fit <- cate(data = data, learner = "dr",
                    x_names = paste0("x", 1:5),
                    y_name = "y",
                    a_name = "a",
                    v_names = "x4",
+                   v0=data.frame(x4 = levels(data$x4)),
                    univariate_reg = TRUE,
                    partial_dependence = TRUE,
                    additive_approx = TRUE,
@@ -84,8 +89,8 @@ test_that("expected results in simple linear second-stage model", {
                    pi.x = pi.x,
                    drl.v = drl.v,
                    drl.x = drl.x,
-                   cond.dens = cond.dens,
-                   cate.w = cate.w,
+                   cond.dens = list(cond.dens),
+                   cate.w = list(cate.w),
                    bw.stage2 = NULL)
 
   foldid <- cate.fit$foldid
@@ -94,14 +99,14 @@ test_that("expected results in simple linear second-stage model", {
   true.pseudo <- a / 0.5 * (y - mu1hat) + mu1hat -
     (1-a) / 0.5 * (y - mu0hat) - mu0hat
 
-  expect_true(max(abs(true.pseudo - cate.fit$pd_res$dr[[1]]$data$pseudo)) < 1e-12)
+  expect_true(max(abs(true.pseudo - cate.fit$pd.res$dr[[1]]$data$pseudo)) < 1e-12)
 
-  expect_true(max(abs(cate.fit$univariate_res$dr[[1]]$data$pseudo - true.pseudo)) < 1e-12)
+  expect_true(max(abs(cate.fit$univariate.res$dr[[1]]$data$pseudo - true.pseudo)) < 1e-12)
 
-  res <- cate.fit$est[[1]][, 1]
+  res <- cate.fit$cate.v.res$est[[1]][, 1]
 
   true.additive_approx <- mean(true.pseudo[x$x4 == 3]) - mean(true.pseudo[x$x4 == 2])
-  expect_true(abs(cate.fit$additive_res$dr[[1]]$res$theta[2] - true.additive_approx) < 1e-12)
+  expect_true(abs(cate.fit$additive.res$dr[[1]]$res$theta[2] - true.additive_approx) < 1e-12)
 
   true.res1 <- (mean(true.pseudo[foldid == 1 & x$x4 == 2]) +
                   mean(true.pseudo[foldid == 2 & x$x4 == 2]))/2
@@ -111,19 +116,23 @@ test_that("expected results in simple linear second-stage model", {
   expect_true(abs(res[1] - true.res1) < 1e-12)
   expect_true(abs(res[2] - true.res2) < 1e-12)
 
-  univariate_res <- cate.fit$univariate_res$dr[[1]]$res
-  true.univariate_res1 <- mean(true.pseudo[x$x4 == 2])
-  true.univariate_res2 <- mean(true.pseudo[x$x4 == 3])
+  univariate_res <- cate.fit$univariate.res$dr[[1]]$res
+  true.univariate_res1 <- mean(true.pseudo[x$x4 == univariate_res$eval.pts[1]])
+  true.univariate_res2 <- mean(true.pseudo[x$x4 == univariate_res$eval.pts[2]])
   expect_true(abs(univariate_res$theta[1] - true.univariate_res1) < 1e-12)
   expect_true(abs(univariate_res$theta[2] - true.univariate_res2) < 1e-12)
 
   bw.stage2 <- list(100, 100, NULL)
-
-  cate.fit2 <- cate(data_frame = data, learner = "dr",
+  v0 <- expand.grid(seq(min(data$x1), max(data$x1), length.out = 50),
+                    seq(min(data$x3), max(data$x3), length.out = 50),
+                    levels(data$x5))
+  colnames(v0) <- c("x1", "x3", "x5")
+  cate.fit2 <- cate(data = data, learner = "dr",
                     x_names = paste0("x", 1:5),
                     y_name = "y",
                     a_name = "a",
                     v_names = c("x1", "x3", "x5"),
+                    v0=v0,
                     univariate_reg = TRUE,
                     partial_dependence = FALSE,
                     additive_approx = TRUE,
@@ -137,30 +146,28 @@ test_that("expected results in simple linear second-stage model", {
                     cate.w = NULL,
                     bw.stage2 = bw.stage2)
 
-  expect_true(max(abs(cate.fit2$univariate_res$dr[[1]]$data$pseudo - true.pseudo)) < 1e-12)
-  expect_true(max(abs(cate.fit2$univariate_res$dr[[2]]$data$pseudo - true.pseudo)) < 1e-12)
-  expect_true(max(abs(cate.fit2$univariate_res$dr[[3]]$data$pseudo - true.pseudo)) < 1e-12)
+  expect_true(max(abs(cate.fit2$univariate.res$dr[[1]]$data$pseudo - true.pseudo)) < 1e-12)
+  expect_true(max(abs(cate.fit2$univariate.res$dr[[2]]$data$pseudo - true.pseudo)) < 1e-12)
+  expect_true(max(abs(cate.fit2$univariate.res$dr[[3]]$data$pseudo - true.pseudo)) < 1e-12)
 
   true.univariate_res1 <- predict.lm(lm(y ~ x, data = data.frame(y = true.pseudo,
                                                                  x = x$x1)),
-                                     newdata = data.frame(x = cate.fit2$univariate_res$dr[[1]]$res$eval.pts))
+                                     newdata = data.frame(x = cate.fit2$univariate.res$dr[[1]]$res$eval.pts))
 
   # expect_true(max(abs(cate.fit2$univariate_res$dr[[1]]$res$theta - true.univariate_res1)) < 1e-12)
 
   true.univariate_res2 <- predict.lm(lm(y ~ x, data = data.frame(y = true.pseudo,
                                                                  x = x$x3)),
-                                     newdata = data.frame(x = cate.fit2$univariate_res$dr[[2]]$res$eval.pts))
+                                     newdata = data.frame(x = cate.fit2$univariate.res$dr[[2]]$res$eval.pts))
 
   # expect_true(max(abs(cate.fit2$univariate_res$dr[[2]]$res$theta - true.univariate_res2)) < 1e-12)
 
-  true.v0.long <- expand.grid(seq(quantile(x$x1, 0.05),
-                                  quantile(x$x1, 0.95), length.out = 100),
-                              seq(quantile(x$x3, 0.05),
-                                  quantile(x$x3, 0.95), length.out = 100),
+  true.v0.long <- expand.grid(seq(min(x$x1), max(x$x1), length.out = 50),
+                              seq(min(x$x3), max(x$x3), length.out = 50),
                               levels(x$x5))
   colnames(true.v0.long) <- c("x1", "x3", "x5")
-  expect_true(max(abs(true.v0.long$x1 - cate.fit2$v0.long$v1)) < 1e-12)
-  expect_true(all(true.v0.long$x5 == cate.fit2$v0.long$v3))
+  expect_true(max(abs(true.v0.long$x1 - cate.fit2$cate.v.res$v0.long$x1)) < 1e-12)
+  expect_true(all(true.v0.long$x5 == cate.fit2$cate.v.res$v0.long$v3))
   fit1 <- lm(y ~ . , data = cbind(data.frame(y = true.pseudo[cate.fit2$foldid == 1]),
                                        x[cate.fit2$foldid == 1, c(1, 3, 5), drop = FALSE]))
 
@@ -170,7 +177,7 @@ test_that("expected results in simple linear second-stage model", {
   true.res <- (predict(fit1, newdata = true.v0.long) +
                  predict(fit2, newdata = true.v0.long)) / 2
 
-  expect_true(max(abs(cate.fit2$est[[1]][, 1] - true.res)) < 1e-12)
+  expect_true(max(abs(cate.fit2$cate.v.res$est[[1]][, 1] - true.res)) < 1e-12)
 
 })
 
