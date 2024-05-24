@@ -315,12 +315,12 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
 
       for(j in 1:ncol(v)){
         vj <- v[, j]
-        is.var.factor <- paste0(class(vj), collapse = " ") %in% c("factor", "ordered factor")
+        is.var.factor <- paste0(class(vj), collapse=" ") %in% c("factor", "ordered factor")
 
         if(partially_linear) {
 
           j.robinson <- robinson(pseudo=pseudo.y[[alg]],
-                                 w=v[, -j, drop = FALSE],
+                                 w=v[, -j, drop=FALSE],
                                  v=v[, j],
                                  new.v=v0.short[[j]],
                                  s=s,
@@ -413,16 +413,45 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
         }
         else {
           if(univariate_reg) {
-            fit_debias_inf <- debiased_inference(A=vj,
-                                                 pseudo.out=pseudo.y[[alg]],
-                                                 eval.pts=v0.short[[j]],
-                                                 bandwidth.method="LOOCV(h=b)",
-                                                 kernel.type="gau",
-                                                 bw.seq=bw.stage2[[j]])
+            univ.inf <- debiased_inference(A=vj,
+                                           pseudo.out=pseudo.y[[alg]],
+                                           eval.pts=v0.short[[j]],
+                                           debias=FALSE,
+                                           bandwidth.method="LOOCV",
+                                           kernel.type="epa",
+                                           bw.seq=bw.stage2[[j]])
+            univ.debias.inf <- debiased_inference(A=vj,
+                                                  pseudo.out=pseudo.y[[alg]],
+                                                  eval.pts=v0.short[[j]],
+                                                  debias=TRUE,
+                                                  bandwidth.method="LOOCV",
+                                                  kernel.type="epa",
+                                                  bw.seq=bw.stage2[[j]])
+            univ.res <- data.frame(eval.pts=univ.inf$res$eval.pts,
+                                   theta=univ.inf$res$theta,
+                                   theta.debias=univ.debias.inf$res$theta,
+                                   ci.ul.pts=univ.inf$res$ci.ul.pts,
+                                   ci.ll.pts=univ.inf$res$ci.ll.pts,
+                                   ci.ul.pts.debias=univ.debias.inf$res$ci.ul.pts,
+                                   ci.ll.pts.debias=univ.debias.inf$res$ci.ll.pts,
+                                   ci.ul.unif=univ.inf$res$ci.ul.unif,
+                                   ci.ll.unif=univ.inf$res$ci.ll.unif,
+                                   ci.ul.unif.debias=univ.debias.inf$res$ci.ul.unif,
+                                   ci.ll.unif.debias=univ.debias.inf$res$ci.ll.unif,
+                                   bias=univ.inf$res$theta-univ.debias.inf$res$theta,
+                                   if.val.sd=univ.inf$res$if.val.sd,
+                                   if.val.sd.debias=univ.debias.inf$res$if.val.sd,
+                                   unif.quantile=univ.inf$res$unif.quantile,
+                                   unif.quantile.debias=univ.debias.inf$res$unif.quantile,
+                                   h=univ.inf$res$h,
+                                   b=univ.inf$res$b,
+                                   h.debias=univ.debias.inf$res$h,
+                                   b.debias=univ.debias.inf$res$b)
+
             univariate_res[[alg]][[j]] <-
               list(data=data.frame(pseudo=pseudo.y[[alg]], exposure=vj),
-                   res=fit_debias_inf$res,
-                   risk=fit_debias_inf$risk)
+                   res=univ.res,
+                   risk=list(risk=univ.inf$risk, risk.debias=univ.debias.inf$risk))
           }
 
           if(partial_dependence) {
@@ -431,21 +460,51 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                      v1=vj, v2=v[, -j, drop=FALSE],
                                      max.n.integral=1000)
 
-            fit_debias_inf <- debiased_inference(A=vj,
-                                                 pseudo.out=pseudo.y.pd[[alg]][, j],
-                                                 eval.pts=v0.short[[j]],
-                                                 mhat.obs=theta.bar[[alg]][, j],
-                                                 muhat.vals=muhat.vals,
-                                                 bandwidth.method="LOOCV(h=b)",
-                                                 kernel.type="gau",
-                                                 bw.seq=bw.stage2[[j]])
+            pd.inf <- debiased_inference(A=vj, debias=FALSE,
+                                         pseudo.out=pseudo.y.pd[[alg]][, j],
+                                         eval.pts=v0.short[[j]],
+                                         mhat.obs=theta.bar[[alg]][, j],
+                                         muhat.vals=muhat.vals,
+                                         bandwidth.method="LOOCV",
+                                         kernel.type="epa",
+                                         bw.seq=bw.stage2[[j]])
+
+            pd.debias.inf <- debiased_inference(A=vj, debias=TRUE,
+                                                pseudo.out=pseudo.y.pd[[alg]][, j],
+                                                eval.pts=v0.short[[j]],
+                                                mhat.obs=theta.bar[[alg]][, j],
+                                                muhat.vals=muhat.vals,
+                                                bandwidth.method="LOOCV",
+                                                kernel.type="epa",
+                                                bw.seq=bw.stage2[[j]])
+
+            pd.inf.res <- data.frame(eval.pts=pd.inf$res$eval.pts,
+                                     theta=pd.inf$res$theta,
+                                     theta.debias=pd.debias.inf$res$theta,
+                                     ci.ul.pts=pd.inf$res$ci.ul.pts,
+                                     ci.ll.pts=pd.inf$res$ci.ll.pts,
+                                     ci.ul.pts.debias=pd.debias.inf$res$ci.ul.pts,
+                                     ci.ll.pts.debias=pd.debias.inf$res$ci.ll.pts,
+                                     ci.ul.unif=pd.inf$res$ci.ul.unif,
+                                     ci.ll.unif=pd.inf$res$ci.ll.unif,
+                                     ci.ul.unif.debias=pd.debias.inf$res$ci.ul.unif,
+                                     ci.ll.unif.debias=pd.debias.inf$res$ci.ll.unif,
+                                     bias=pd.inf$res$theta-pd.debias.inf$res$theta,
+                                     if.val.sd=pd.inf$res$if.val.sd,
+                                     if.val.sd.debias=pd.debias.inf$res$if.val.sd,
+                                     unif.quantile=pd.inf$res$unif.quantile,
+                                     unif.quantile.debias=pd.debias.inf$res$unif.quantile,
+                                     h=pd.inf$res$h,
+                                     b=pd.inf$res$b,
+                                     h.debias=pd.debias.inf$res$h,
+                                     b.debias=pd.debias.inf$res$b)
 
             pd_res[[alg]][[j]] <-
               list(data=data.frame(pseudo=pseudo.y.pd[[alg]][, j],
                                    cond.dens.vals=cond.dens.vals[[alg]][, j],
                                    exposure=vj),
-                   res=fit_debias_inf$res,
-                   risk=fit_debias_inf$risk)
+                   res=pd.inf.res,
+                   risk=list(risk=pd.inf$risk, risk.debias=pd.debias.inf$risk))
           }
         }
 
@@ -470,10 +529,9 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
           m <- model.frame(tt, new.dat.additive)
           design.mat <- model.matrix(tt, m)
           design.mat[, apply(design.mat, 2, function(u) length(unique(u))==1)] <- 0
-          preds.j.additive <-  design.mat %*% coef(additive_model$model)
+          preds.j.additive <- design.mat %*% coef(additive_model$model)
           beta.vcov <- sandwich::vcovHC(additive_model$model)
           sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
-
           ci.l <- preds.j.additive - 1.96*sqrt(sigma2hat)
           ci.u <- preds.j.additive + 1.96*sqrt(sigma2hat)
           additive_res[[alg]][[j]] <- list(res=data.frame(eval.pts=v0.short[[j]],

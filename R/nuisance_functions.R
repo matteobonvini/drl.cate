@@ -17,7 +17,7 @@ get_input <- function(data, x_names, y_name, a_name, v_names, v0){
   unique.v0 <- list()
   for(i in 1:ncol(v0)) unique.v0[[colnames(v0)[i]]] <- unique(v0[,i])
 
-  res <- list(a = a, y = y, x = x, v = v, unique.v0 = unique.v0, v0 = v0)
+  res <- list(a=a, y=y, x=x, v=v, unique.v0=unique.v0, v0=v0)
   return(res)
 }
 
@@ -268,21 +268,20 @@ lm.discrete.v <- function(y, x, new.x) {
 
   return(arg)
 }
-robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
-                     dfs) {
+robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j, dfs) {
   nsplits <- length(unique(s))
   risk <- rep(NA, length(dfs))
-  fits <- vector("list", length = length(dfs))
+  fits <- vector("list", length=length(dfs))
   # preds <- matrix(NA, ncol = length(dfs), nrow = length(new.v))
   # todo: make the code below faster by only estimating E(p_j(V) | V_{-j}) once.
   for(k in 1:length(dfs)) {
 
-    res.v <- matrix(NA, nrow = length(pseudo), ncol = dfs[k])
+    res.v <- matrix(NA, nrow=length(pseudo), ncol=dfs[k])
     res.y <- rep(NA, length(pseudo))
 
     for(i in 1:nsplits){
-      test.idx <- i == s
-      train.idx <- i != s
+      test.idx <- i==s
+      train.idx <- i!=s
       if(all(!train.idx)) train.idx <- test.idx
       w.tr <- w[train.idx, , drop = FALSE]
       w.te <- w[test.idx, , drop = FALSE]
@@ -291,53 +290,38 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j,
       v.tr <- v[train.idx]
       v.te <- v[test.idx]
 
-      p.v.tr <- poly(v.tr, degree = dfs[k], raw = TRUE)
-      p.v.te <- poly(v.te, degree = dfs[k], raw = TRUE)
+      p.v.tr <- poly(v.tr, degree=dfs[k], raw=TRUE)
+      p.v.te <- poly(v.te, degree=dfs[k], raw=TRUE)
 
       for(j in 1:dfs[k]){
-        # res.v[test.idx, j] <- p.v.te[, j] - SuperLearner(Y = p.v.tr[, j],
-        #                                                  X = as.data.frame(w.tr),
-        #                                                  newX = as.data.frame(w.te),
-        #                                                  SL.library = SL.library)$SL.predict[, 1]
-        res.v[test.idx, j] <- p.v.te[, j] - reg.basis.not.j(y = p.v.tr[, j],
-                                                            x = w.tr,
-                                                            new.x = w.te)
-
+        res.v[test.idx, j] <- p.v.te[, j] - reg.basis.not.j(y=p.v.tr[, j],
+                                                            x=w.tr, new.x=w.te)
       }
-      # res.y[test.idx] <- pseudo.te - SuperLearner(Y = pseudo.tr,
-      #                                             X = as.data.frame(w.tr),
-      #                                             newX = as.data.frame(w.te),
-      #                                             SL.library = SL.library)$SL.predict[, 1]
-      res.y[test.idx] <- pseudo.te - cate.not.j(y = pseudo.tr,
-                                                x = w.tr,
-                                                new.x = w.te)
+      res.y[test.idx] <- pseudo.te - cate.not.j(y=pseudo.tr, x=w.tr, new.x=w.te)
     }
 
     fit.k <-  lm(res.y ~ -1 + res.v)
     fits[[k]] <- fit.k
-    diag.hat.mat <- lm.influence(fit.k, do.coef = FALSE)$hat
-    # preds[, k] <- poly(new.v, degree = dfs[k], raw = TRUE) %*% coef(fit)
-    # preds[, k] <- matrix(new.v, ncol = 1) %*% coef(fit)
-    risk[k] <- mean((resid(fit.k) / (1 - diag.hat.mat))^2)
+    diag.hat.mat <- lm.influence(fit.k, do.coef=FALSE)$hat
+    risk[k] <- mean((resid(fit.k)/(1-diag.hat.mat))^2)
 
   }
-  # print(which.min(risk))
   fit.star <- fits[[which.min(risk)]]
-  design.mat <- poly(new.v, degree = dfs[which.min(risk)], raw = TRUE)
-  preds <- design.mat %*% coef(fit.star)
+  design.mat <- poly(new.v, degree=dfs[which.min(risk)], raw=TRUE)
+  preds <- design.mat%*%coef(fit.star)
   beta.vcov <- sandwich::vcovHC(fit.star)
-  sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
-  ci.ll <- preds - 1.96 * sqrt(sigma2hat)
-  ci.uu <- preds + 1.96 * sqrt(sigma2hat)
-  res <- data.frame(preds = preds, ci.ll = ci.ll, ci.uu = ci.uu)
-  out <- list(res = res, model = fit.star, risk = risk, fits = fits)
+  sigma2hat <- diag(design.mat%*%beta.vcov%*%t(design.mat))
+  ci.ll <- preds-1.96*sqrt(sigma2hat)
+  ci.uu <- preds+1.96*sqrt(sigma2hat)
+  res <- data.frame(preds=preds, ci.ll=ci.ll, ci.uu=ci.uu)
+  out <- list(res=res, model=fit.star, risk=risk, fits=fits)
   return(out)
 
 }
 
 
 drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
-  # require(splines)
+  require(splines)
   x <- as.data.frame(x)
   n.vals <- apply(x, 2, function(u) length(unique(u)))
   var.type <- unlist(lapply(x, function(u) paste0(class(u), collapse = " ")))
@@ -349,12 +333,12 @@ drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
   risk <- models <- rep(NA, nrow(n.basis))
   for(i in 1:nrow(n.basis)){
     if(ncol(x.cont) > 0) {
-      # lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
-      lm.form <- paste0("~ ", paste0("ns(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
+      lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", raw = TRUE, degree = ", n.basis[i, 1], ")"))
+      # lm.form <- paste0("~ ", paste0("ns(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
       if(ncol(x.cont) > 1) {
         for(k in 2:ncol(x.cont)) {
-          # lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
-          lm.form <- c(lm.form, paste0("ns(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
+          lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", raw = TRUE, degree = ", n.basis[i, k], ")"))
+          # lm.form <- c(lm.form, paste0("ns(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
           }
       }
     }
@@ -369,17 +353,17 @@ drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
     }
 
     lm.form <- paste0(lm.form, collapse = " + ")
-    fit <- lm(as.formula(paste0("y", lm.form)), data = cbind(data.frame(y = y), x))
+    fit <- lm(as.formula(paste0("y", lm.form)), data = cbind(data.frame(y = y), x.cont, x.disc))
     # x.mat <- model.matrix(as.formula(lm.form), data = x)
     # hat.mat <- x.mat %*% solve(crossprod(x.mat, x.mat)) %*% t(x.mat)
-    diag.hat.mat <- lm.influence(fit, do.coef = FALSE)$hat
+    diag.hat.mat <- lm.influence(fit, do.coef=FALSE)$hat
     # diag.hat.mat <- diag(hat.mat)
-    risk[i] <- mean((resid(fit) / (1 - diag.hat.mat))^2)
+    risk[i] <- mean((resid(fit)/(1-diag.hat.mat))^2)
     models[i] <- lm.form
   }
 
   best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
-                   data = cbind(data.frame(y = y), x))
+                   data = cbind(data.frame(y=y), x))
 
   out <- predict(best.model, newdata = as.data.frame(new.x))
   res <- cbind(out, NA, NA)

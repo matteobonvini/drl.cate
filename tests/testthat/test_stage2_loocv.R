@@ -2,37 +2,39 @@ context("second-stage LOOCV")
 
 test_that("expected behavior of second stage bw selector", {
   for(i in 1:30) {
-    n <- 200
-    A <- rnorm(n, sd = 0.1)
-    pseudo.out <- cos(2*pi*A) + rnorm(n)
-    h <- b <- 0.95
-    res <- debiased_inference(A = A, pseudo.out = pseudo.out,
-                              bw.seq = h, eval.pts=A,
-                              kernel.type="epa",
-                              bandwidth.method = "LOOCV")
-    idx <- which(!is.na(res$res$theta))
-    if(sum(is.na(res$res$theta)) > 0) {
-      print("Skipping")
-      next()
-    }
-    preds <- rep(NA, n)
-    for(j in 1:n) {
-      if(is.na(res$res$theta[j])) next()
-      preds[j] <- .lprobust(x = A[-j],
-                            y = pseudo.out[-j],
-                            h = h, b = b,
-                            eval.pt = A[j], kernel.type="epa")[, "mu.hat"]
 
+    n <- 200
+    x <- rnorm(n, sd = 0.1)
+    y <- cos(2*pi*x) + rnorm(n)
+    h <- b <- 0.95
+
+    loo.preds <- loo.preds.db <- rep(NA, n)
+    for(j in 1:n) {
+      loo.preds[j] <- .lprobust(x=x[-j], y=y[-j], h=h, b=b, eval.pt=x[j],
+                                debias=FALSE, kernel.type="epa")[, "theta.hat"]
+      loo.preds.db[j] <- .lprobust(x=x[-j], y=y[-j], h=h, b=b, eval.pt=x[j],
+                                   debias=TRUE, kernel.type="epa")[, "theta.hat"]
     }
-    loocv.risk <- ifelse(mean(!is.na(preds)) <= 0.8,
-                         Inf, mean((pseudo.out[idx] - preds[idx])^2))
+
+    loocv.risk <- mean((y-loo.preds)^2)
+    loocv.risk.db <- mean((y-loo.preds.db)^2)
+
+    res <- debiased_inference(A=x, pseudo.out=y,
+                              bw.seq=h, eval.pts=x,
+                              kernel.type="epa",
+                              debias=FALSE,
+                              bandwidth.method="LOOCV")
+    res.db <- debiased_inference(A=x, pseudo.out=y,
+                                 bw.seq=h, eval.pts=x,
+                                 kernel.type="epa",
+                                 debias=TRUE,
+                                 bandwidth.method="LOOCV")
+
    expect_true(abs(loocv.risk - res$risk$loocv.risk) < 1e-10 ||
                is.infinite(loocv.risk))
-   # print(loocv.risk)
-   # print(abs(loocv.risk - res$risk$loocv.risk))
-   # print(i)
+   expect_true(abs(loocv.risk.db - res.db$risk$loocv.risk) < 1e-10 ||
+                 is.infinite(loocv.risk.db))
   }
-
 })
 
 test_that("expected behavior of LOOCV additive basis", {
@@ -121,6 +123,5 @@ test_that("expected behavior of LOOCV additive basis", {
     expect_true(max(abs(fit$res[, 1] - fitted(fit2))) < 1e-10)
     expect_true(abs(min(fit$risk) - mean(resids^2)) < 1e-10)
     expect_true(abs(min(fit3$risk) - mean(resids3^2)) < 1e-10)
-    # preds <- x.mat %*% solve(crossprod(x.mat, x.mat)) %*% t(x.mat) %*% y
   }
 })
