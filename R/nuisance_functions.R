@@ -307,6 +307,7 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j, dfs) {
 
   }
   fit.star <- fits[[which.min(risk)]]
+  risk.dat <- data.frame(dfs = dfs, risk = risk)
   design.mat <- poly(new.v, degree=dfs[which.min(risk)], raw=TRUE)
   preds <- design.mat%*%coef(fit.star)
   beta.vcov <- sandwich::vcovHC(fit.star)
@@ -314,7 +315,7 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j, dfs) {
   ci.ll <- preds-1.96*sqrt(sigma2hat)
   ci.uu <- preds+1.96*sqrt(sigma2hat)
   res <- data.frame(preds=preds, ci.ll=ci.ll, ci.uu=ci.uu)
-  out <- list(res=res, model=fit.star, risk=risk, fits=fits)
+  out <- list(res=res, model=fit.star, risk=risk.dat, fits=fits)
   return(out)
 
 }
@@ -361,14 +362,15 @@ drl.basis.additive <- function(y, x, new.x, kmin = 1, kmax = 10) {
     risk[i] <- mean((resid(fit)/(1-diag.hat.mat))^2)
     models[i] <- lm.form
   }
-
+  risk.dat <- cbind(n.basis, risk)
+  colnames(risk.dat) <- c(colnames(x.cont), "loocv.risk")
   best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
                    data = cbind(data.frame(y=y), x))
 
   out <- predict(best.model, newdata = as.data.frame(new.x))
   res <- cbind(out, NA, NA)
   return((list(drl.form = models[which.min(risk)], res = res, model =  best.model,
-               risk = risk)))
+               risk = risk.dat)))
 
 }
 
