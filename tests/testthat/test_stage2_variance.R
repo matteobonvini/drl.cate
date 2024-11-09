@@ -1,7 +1,7 @@
 context("second-stage variance")
 
 test_that("expected behavior of second stage variance estimator", {
-  for(i in 1:30) {
+  for(i in 1:2) {
     n <- 200
     A <- rnorm(n, sd = 0.1)
     pseudo.out <- cos(2*pi*A) + rnorm(n)

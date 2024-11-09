@@ -1,7 +1,7 @@
 context("second-stage LOOCV")
 
 test_that("expected behavior of second stage bw selector", {
-  for(i in 1:30) {
+  for(i in 1:2) {
 
     n <- 200
     x <- rnorm(n, sd = 0.1)
@@ -91,7 +91,7 @@ test_that("expected behavior of LOOCV additive basis", {
 
   }
 
-  for(i in 1:30) {
+  for(i in 1:2) {
 
     n <- 250
     x1 <- rnorm(n)

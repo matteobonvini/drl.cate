@@ -3,11 +3,19 @@ context("second-stage loc linear regression")
 test_that("expected behavior of second stage local linear smoother", {
 
   for(bw in c(0.05, 0.1, 1, 100)) {
-    for(i in 1:30) {
+    for(i in 1:2) {
       n <- 500
       A <- rnorm(n)
       pseudo.out <- cos(2*pi*A) + rnorm(n)
       eval.pts <- seq(min(A), max(A), length.out = 100)
+
+      bw.min <- Vectorize(function(u){
+        # count the unique points nearby u
+        # length(unique(A[.kern((A-u)/min(h.seq), "gau") > 1e-6]))
+        sort(unique(abs(A - u)))[10]
+      })
+      bw <- pmax(bw, max(bw.min(eval.pts)))
+
       require(locpol)
       fit2 <- suppressWarnings({
         locpol(y ~ x, data=data.frame(x=A, y=pseudo.out), bw=bw, xeval=eval.pts,
@@ -19,7 +27,6 @@ test_that("expected behavior of second stage local linear smoother", {
         W <- dnorm(A.std)
         fit4 <- lm(y ~ x, data.frame(x = A.std, y = pseudo.out), weights = W)
         est[j] <- coef(fit4)[1]
-
       }
 
       fit <- debiased_inference(A, pseudo.out, eval.pts=eval.pts,

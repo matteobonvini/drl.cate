@@ -89,6 +89,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
 
   n <- length(y)
   n.eval.pts <- nrow(v0.long)
+  n.eff.modif <- ncol(v)
 
   if(is.null(foldid)) {
     s <- sample(rep(1:nsplits, ceiling(n/nsplits))[1:n])
@@ -97,25 +98,32 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
     nsplits <- length(unique(foldid))
   }
 
-  est <- est.pi <- replicate(length(learner), array(NA, dim=c(n.eval.pts, 3, nsplits)),
+  est <- est.pi <- replicate(length(learner),
+                             array(NA, dim=c(n.eval.pts, 3, nsplits)),
                              simplify=FALSE)
   univariate_res <- pd_res <- additive_res <- robinson_res <-
-    replicate(length(learner), vector("list", ncol(v)), simplify=FALSE)
+    replicate(length(learner), vector("list", n.eff.modif), simplify=FALSE)
 
-  cate.w.fit <- replicate(ncol(v), vector("list", nsplits), simplify=FALSE)
+  cate.w.fit <- stage2.reg.data.pd <-
+    replicate(n.eff.modif, vector("list", nsplits), simplify=FALSE)
 
   pseudo.y <- replicate(length(learner), rep(NA, n), simplify=FALSE)
   pseudo.y.tr <- ites.x.tr <-
     replicate(length(learner), vector("list", nsplits), simplify=FALSE)
+
   pseudo.y.pd <- theta.bar <- cond.dens.vals <- cate.w.vals <-
-    replicate(length(learner), matrix(NA, ncol=ncol(v), nrow=n), simplify=FALSE)
-  ites_v <- ites_x <- replicate(length(learner), matrix(NA, ncol=3, nrow=n), simplify=FALSE)
+    replicate(length(learner), matrix(NA, ncol=n.eff.modif, nrow=n),
+              simplify=FALSE)
+
+  ites_v <- ites_x <- replicate(length(learner),
+                                matrix(NA, ncol=3, nrow=n), simplify=FALSE)
+
   names(est) <- names(est.pi) <- names(pseudo.y) <- names(ites_v) <-
     names(ites_x) <- names(pseudo.y.pd) <- names(theta.bar) <-
     names(cond.dens.vals) <- names(cate.w.vals) <- names(pseudo.y.tr) <- learner
 
-  stage2.reg.data.v <- stage2.reg.data.x <- reg.model <- vector("list", nsplits)
-  stage2.reg.data.pd <- replicate(ncol(v), vector("list", nsplits), simplify=FALSE)
+  stage2.reg.data.v <- stage2.reg.data.x <- reg.model <-
+    vector("list", nsplits)
 
   tmp <- tryCatch(
     {
@@ -286,26 +294,20 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
     },
     error = function(cond) {
       message(conditionMessage(cond))
-      # each_filename <- paste0('sim_data_', as.character(n), '-',
-      #                         as.character(iter), '.rda')
-      # save(data, file = "/Users/matteobonvini/Dropbox/Hetero Effects/Simulations/debug/dataset_error.rda")
-      # save(s, file = "/Users/matteobonvini/Dropbox/Hetero Effects/Simulations/debug/foldid_error.rda")
-      # NULL
     }
   )
   if(is.null(tmp)){
     warning("Encountered error while fitting nuisance functions")
-    # print("Encountered error while fitting nuisance functions, exiting procedure.")
-    univ.res <- pd.res <- add.res <- rob.res <- data.frame(theta = rep(NA, 10),
-                                                           theta.debias = rep(NA, 10))
-    return(list(univariate_res = list(dr = list(list(res = univ.res))),
-                pd_res = list(dr = list(list(res = pd.res))),
-                additive_res = list(dr = list(list(res = add.res))),
-                robinson_res = list(dr = list(list(res = rob.res)))))
+    univ.res <- pd.res <- add.res <- rob.res <-
+      data.frame(theta=rep(NA, 10), theta.debias=rep(NA, 10))
+    return(list(univariate_res=list(dr=list(list(res=univ.res))),
+                pd_res=list(dr=list(list(res=pd.res))),
+                additive_res=list(dr=list(list(res=add.res))),
+                robinson_res=list(dr=list(list(res=rob.res)))))
   }
   for(alg in learner) {
 
-    if(alg != "dr") stop("Only learner = df is currently implemented.")
+    if(alg != "dr") stop("Only learner = dr is currently implemented.")
 
     if(additive_approx) {
       additive_model <- drl.basis.additive(y=pseudo.y[[alg]], x=v, new.x=v)
@@ -418,14 +420,14 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                            eval.pts=v0.short[[j]],
                                            debias=FALSE,
                                            bandwidth.method="LOOCV",
-                                           kernel.type="epa",
+                                           kernel.type="gau",
                                            bw.seq=bw.stage2[[j]])
             univ.debias.inf <- debiased_inference(A=vj,
                                                   pseudo.out=pseudo.y[[alg]],
                                                   eval.pts=v0.short[[j]],
                                                   debias=TRUE,
                                                   bandwidth.method="LOOCV",
-                                                  kernel.type="epa",
+                                                  kernel.type="gau",
                                                   bw.seq=bw.stage2[[j]])
             univ.res <- data.frame(eval.pts=univ.inf$res$eval.pts,
                                    theta=univ.inf$res$theta,
@@ -451,7 +453,9 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
             univariate_res[[alg]][[j]] <-
               list(data=data.frame(pseudo=pseudo.y[[alg]], exposure=vj),
                    res=univ.res,
-                   risk=list(risk=univ.inf$risk, risk.debias=univ.debias.inf$risk))
+                   risk=list(risk=univ.inf$risk, risk.debias=univ.debias.inf$risk),
+                   res.list=univ.inf$res.list,
+                   res.list.debias=univ.debias.inf$res.list)
           }
 
           if(partial_dependence) {
@@ -466,7 +470,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                          mhat.obs=theta.bar[[alg]][, j],
                                          muhat.vals=muhat.vals,
                                          bandwidth.method="LOOCV",
-                                         kernel.type="epa",
+                                         kernel.type="gau",
                                          bw.seq=bw.stage2[[j]])
 
             pd.debias.inf <- debiased_inference(A=vj, debias=TRUE,
@@ -475,7 +479,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                                 mhat.obs=theta.bar[[alg]][, j],
                                                 muhat.vals=muhat.vals,
                                                 bandwidth.method="LOOCV",
-                                                kernel.type="epa",
+                                                kernel.type="gau",
                                                 bw.seq=bw.stage2[[j]])
 
             pd.inf.res <- data.frame(eval.pts=pd.inf$res$eval.pts,
@@ -504,7 +508,9 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                    cond.dens.vals=cond.dens.vals[[alg]][, j],
                                    exposure=vj),
                    res=pd.inf.res,
-                   risk=list(risk=pd.inf$risk, risk.debias=pd.debias.inf$risk))
+                   risk=list(risk=pd.inf$risk, risk.debias=pd.debias.inf$risk),
+                   res.list=pd.inf$res.list,
+                   res.list.debias=pd.debias.inf$res.list)
           }
         }
 
@@ -532,8 +538,8 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
           preds.j.additive <- design.mat %*% coef(additive_model$model)
           beta.vcov <- sandwich::vcovHC(additive_model$model)
           sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
-          ci.l <- preds.j.additive - 1.96*sqrt(sigma2hat)
-          ci.u <- preds.j.additive + 1.96*sqrt(sigma2hat)
+          ci.l <- preds.j.additive-1.96*sqrt(sigma2hat)
+          ci.u <- preds.j.additive+1.96*sqrt(sigma2hat)
           additive_res[[alg]][[j]] <- list(res=data.frame(eval.pts=v0.short[[j]],
                                                           theta=preds.j.additive,
                                                           ci.ll.pts=ci.l,
@@ -542,7 +548,8 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                                           ci.ul.unif=NA),
                                            drl.form=additive_model$drl.form,
                                            model=additive_model$model,
-                                           risk=additive_model$risk)
+                                           risk=additive_model$risk,
+                                           res.list=additive_model$fits)
         }
       }
     }

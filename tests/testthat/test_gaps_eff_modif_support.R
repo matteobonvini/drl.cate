@@ -177,9 +177,46 @@ test_that("expected NAs when there are gaps", {
            bw.stage2 = list(0.05, 0.05, NULL))
       })
 
-    expect_true(is.na(cate.fit$univariate.res$dr[[1]]$res[1, "theta"]))
-    expect_true(is.na(cate.fit$univariate.res$dr[[1]]$res[1, "theta.debias"]))
-    expect_true(is.na(cate.fit$univariate.res$dr[[1]]$res[1, "ci.ul.pts"]))
+    bw.min <- sort(abs(unique(x[, 1] - v0.long$x1[1])))[10]
+
+    fit2 <- suppressWarnings({
+      cate(data = data, learner = "dr",
+           x_names = paste0("x", 1:5),
+           y_name = "y",
+           a_name = "a",
+           v_names = c("x1", "x3", "x5"),
+           univariate_reg = TRUE,
+           partial_dependence = TRUE,
+           partially_linear = FALSE,
+           additive_approx = TRUE,
+           nsplits = 2,
+           v0 = v0.long,
+           mu1.x = mu1.x,
+           mu0.x = mu0.x,
+           pi.x = pi.x,
+           drl.v = drl.v,
+           drl.x = drl.x,
+           cond.dens = rep(list(cond.dens), 3),
+           cate.w = rep(list(cate.w), 3),
+           bw.stage2 = list(bw.min, bw.min, NULL))
+    })
+
+    pred1 <- cate.fit$univariate.res$dr[[1]]$res[1, "theta"]
+    pred2 <- fit2$univariate.res$dr[[1]]$res[1, "theta"]
+
+    pred1.db <- cate.fit$univariate.res$dr[[1]]$res[1, "theta.debias"]
+    pred2.db <- fit2$univariate.res$dr[[1]]$res[1, "theta.debias"]
+
+    pred1.lb <- cate.fit$univariate.res$dr[[1]]$res[1, "ci.ll.pts"]
+    pred2.lb <- fit2$univariate.res$dr[[1]]$res[1, "ci.ll.pts"]
+    expect_true(abs(pred1 - pred2) < 1e-10)
+    expect_true(abs(pred1.db - pred2.db) < 1e-10)
+    expect_true(abs(pred1.lb - pred2.lb) < 1e-10)
+
+    pred.other1 <- cate.fit$univariate.res$dr[[1]]$res[2, "theta"]
+    pred.other2 <- fit2$univariate.res$dr[[1]]$res[2, "theta"]
+    expect_true(abs(pred.other1 - pred.other2) > 1e-3)
+
     expect_true(!is.na(cate.fit$univariate.res$dr[[1]]$res[2, "theta"]))
   }
 })
