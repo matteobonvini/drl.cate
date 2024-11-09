@@ -179,7 +179,7 @@ drl.basis.additive <- function(y, x, new.x, kmin=1, kmax=10) {
   out <- predict(best.model, newdata=as.data.frame(new.x))
   res <- cbind(out, NA, NA)
   return((list(drl.form=models[which.min(risk)], res=res, model=best.model,
-               risk=risk.dat, fits)))
+               risk=risk.dat, fits=fits)))
 }
 
 draw_VIMP <- function(vimp_df){
