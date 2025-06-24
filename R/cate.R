@@ -530,16 +530,39 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
               }
             }
           }
+          form <- formula(additive_model$model)
+          # term_labels <- attr(terms(form), "term.labels")
+          mm <- model.matrix(additive_model$model)
+          coefs <- coef(additive_model$model)
 
-          preds.j.additive <- predict.lm(additive_model$model, newdata=new.dat.additive)
-          m <- model.frame(tt, new.dat.additive)
-          design.mat <- model.matrix(tt, m)
-          design.mat[, apply(design.mat, 2, function(u) length(unique(u))==1)] <- 0
-          preds.j.additive <- design.mat %*% coef(additive_model$model)
-          beta.vcov <- sandwich::vcovHC(additive_model$model)
-          sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
+          bs_term_for_vj <- grep(colnames(v)[j], colnames(mm), value=TRUE)
+          coefs.names.vj <- grep(colnames(v)[j], names(coefs), value=TRUE)
+
+          coefs.vj <- coefs[coefs.names.vj]
+          new.design.mat <- as.matrix(model.matrix(tt, new.dat.additive)[, bs_term_for_vj])
+
+          if(!is.factor(v[, j])) {
+            design.mat <- as.matrix(model.matrix(tt, v)[, bs_term_for_vj])
+            mean.point <- apply(design.mat, 2, mean)
+            new.design.mat <- sweep(new.design.mat, 2, mean.point, FUN = "-")
+          }
+
+          preds.j.additive <- new.design.mat %*% coefs.vj
+          beta.vcov <- sandwich::vcovHC(additive_model$model, type="HC")[coefs.names.vj, coefs.names.vj]
+          sigma2hat <- diag(new.design.mat %*% beta.vcov %*% t(new.design.mat))
           ci.l <- preds.j.additive-1.96*sqrt(sigma2hat)
           ci.u <- preds.j.additive+1.96*sqrt(sigma2hat)
+
+
+          # preds.j.additive <- predict.lm(additive_model$model, newdata=new.dat.additive)
+          # m <- model.frame(tt, new.dat.additive)
+          # design.mat <- model.matrix(tt, m)
+          # design.mat[, apply(design.mat, 2, function(u) length(unique(u))==1)] <- 0
+          # preds.j.additive <- design.mat %*% coef(additive_model$model)
+          # beta.vcov <- sandwich::vcovHC(additive_model$model)
+          # sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
+          # ci.l <- preds.j.additive-1.96*sqrt(sigma2hat)
+          # ci.u <- preds.j.additive+1.96*sqrt(sigma2hat)
           additive_res[[alg]][[j]] <- list(res=data.frame(eval.pts=v0.short[[j]],
                                                           theta=preds.j.additive,
                                                           ci.ll.pts=ci.l,

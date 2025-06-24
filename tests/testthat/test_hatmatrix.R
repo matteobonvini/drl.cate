@@ -25,7 +25,7 @@ test_that(".hatmatrix is correct when the bandwidth is small", {
 
   n <- 1000
   nsim <- 2
-  h <- 0.5
+  h <- b <- 0.5
   for(i in 1:nsim) {
     x <- rnorm(n)
     y <- 2*x + rnorm(n)

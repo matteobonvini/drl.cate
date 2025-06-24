@@ -38,7 +38,7 @@ test_that("expected behavior with pure noise and signal", {
                      seq(min(x2), max(x2), length.out = 25),
                      seq(min(x3), max(x3), length.out = 25))
     colnames(v0) <- c("x1", "x2", "x3")
-    cate.fit <- cate(data = data, learner = "dr",
+    cate.fit <- cate(data = data, learner="dr",
                      x_names = c("x1", "x2", "x3"),
                      y_name = "y",
                      a_name = "a",
@@ -74,9 +74,9 @@ test_that("expected behavior with only pure noise", {
     a <- rbinom(n, 1, 0.5)
     y <- a * x1 + rnorm(n, sd = 0.1)
     data <- data.frame(y = y, a = a, x1 = x1, x2 = x2, x3 = x3)
-    v0 <-expand.grid(seq(min(x1), max(x1), length.out = 25),
-                     seq(min(x2), max(x2), length.out = 25),
-                     seq(min(x3), max(x3), length.out = 25))
+    v0 <- expand.grid(seq(min(x1), max(x1), length.out=25),
+                      seq(min(x2), max(x2), length.out = 25),
+                      seq(min(x3), max(x3), length.out = 25))
     colnames(v0) <- c("x1", "x2", "x3")
     cate.fit <- cate(data = data, learner = "dr",
                      x_names = c("x1", "x2", "x3"),

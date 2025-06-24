@@ -52,12 +52,12 @@ test_that("expected behavior of LOOCV additive basis", {
     risk <- models <- rep(NA, nrow(n.basis))
     for(i in 1:nrow(n.basis)){
       if(ncol(x.cont) > 0) {
-        # lm.form <- paste0("~ ", paste0("ns(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
-        lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
+        lm.form <- paste0("~ ", paste0("bs(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
+        # lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", degree = ", n.basis[i, 1], ")"))
         if(ncol(x.cont) > 1) {
           for(k in 2:ncol(x.cont)) {
-            # lm.form <- c(lm.form, paste0("ns(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
-            lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
+            lm.form <- c(lm.form, paste0("bs(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
+            # lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", degree = ", n.basis[i, k], ")"))
           }
         }
       }
@@ -101,8 +101,8 @@ test_that("expected behavior of LOOCV additive basis", {
     y <- rnorm(n, x1^2 + x2  + x3, 0.5)
     dat <- cbind(y = y, x)
     new.x <- x
-    fit <- drl.basis.additive(y, x, new.x, kmin = 1, kmax = 5)
-    fit3 <- drl.basis.additive2(y, x, new.x, kmin = 1, kmax = 2)
+    fit <- drl.basis.additive(y, x, new.x, kmin = 3, kmax = 5)
+    fit3 <- drl.basis.additive2(y, x, new.x, kmin = 3, kmax = 2)
     fit2 <- lm(as.formula(paste0("y ", fit$drl.form)),
                data = dat)
     resids <- resids3 <- rep(NA, n)
@@ -125,3 +125,5 @@ test_that("expected behavior of LOOCV additive basis", {
     expect_true(abs(min(fit3$risk) - mean(resids3^2)) < 1e-10)
   }
 })
+
+

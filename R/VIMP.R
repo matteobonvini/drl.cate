@@ -25,7 +25,7 @@ get_vimp <- function(cate.fit, var.names, lab.var.names,
     nsplits <- length(unique(foldid))
   } else {
     n <- length(y)
-    foldid <- sample(rep(1:nsplits, ceiling(n / nsplits))[1:n])
+    foldid <- sample(rep(1:nsplits, ceiling(n/nsplits))[1:n])
     pseudo_hat <- tau_hat <- rep(NA, n)
     ites.x.tr <- vector("list", nsplits)
 
@@ -33,31 +33,30 @@ get_vimp <- function(cate.fit, var.names, lab.var.names,
       # in.idx <- k == s
       # ex.idx <- k != s
 
-      test.idx <- k == foldid
-      train.idx <- k != foldid
+      test.idx <- k==foldid
+      train.idx <- k!=foldid
 
       if(all(!train.idx)) train.idx <- test.idx
       n.te <- sum(test.idx)
       n.tr <- sum(train.idx)
 
-      x.tr <- x[train.idx, , drop = FALSE]
+      x.tr <- x[train.idx, , drop=FALSE]
       a.tr <- a[train.idx]
       y.tr <- y[train.idx]
-      x.te <- x[test.idx, , drop = FALSE]
+      x.te <- x[test.idx, , drop=FALSE]
       a.te <- a[test.idx]
       y.te <- y[test.idx]
       print('initializing x y a successfully!')
       print(a)
       # step 2
-      pihat.vals <- pi.x(a = a.tr, x = x.tr, new.x = rbind(x.te, x.tr))$res
+      pihat.vals <- pi.x(a=a.tr, x=x.tr, new.x=rbind(x.te, x.tr))$res
 
       print('calculating pi successfully!')
 
       pihat_in <- pihat.vals[1:n.te]
       pihat_ex <- pihat.vals[-c(1:n.te)]
 
-      mu0hat.vals <- mu0.x(y = y.tr, a = a.tr, x = x.tr,
-                                  new.x = rbind(x.te, x.tr))$res
+      mu0hat.vals <- mu0.x(y=y.tr, a=a.tr, x=x.tr, new.x=rbind(x.te, x.tr))$res
       mu0hat_in <- mu0hat.vals[1:n.te]
       mu0hat_ex <- mu0hat.vals[-c(1:n.te)]
 
@@ -84,38 +83,38 @@ get_vimp <- function(cate.fit, var.names, lab.var.names,
   }
 
     tau_p_hat <- mean(tau_hat)
-    theta_p_hat <- mean((pseudo_hat - tau_p_hat)^2) - mean((pseudo_hat - tau_hat)^2)
+    theta_p_hat <- mean((pseudo_hat-tau_p_hat)^2) - mean((pseudo_hat-tau_hat)^2)
 
     for(i in 1:length(var.names)){
       keep.vars <- which(!colnames(x) %in% var.names[[i]])
       tau_s_hat <- rep(NA, n)
       for(k in 1:nsplits){
-        idx.te <- k == foldid
-        if(length(unique(foldid)) > 1) idx.tr <- k != foldid
+        idx.te <- k==foldid
+        if(length(unique(foldid)) > 1) idx.tr <- k!=foldid
         else idx.tr <- idx.te
 
-        fit <- drl.x(pseudo = ites.x.tr[[k]],
-                     x = x[idx.tr, keep.vars, drop = FALSE],
-                     new.x = x[idx.te, keep.vars, drop = FALSE])
-        tau_s_hat[idx.te] <- fit$res[, 1]
+        fit <- drl.x(pseudo=ites.x.tr[[k]],
+                     x=x[idx.tr, keep.vars, drop=FALSE],
+                     new.x=x[idx.te, keep.vars, drop=FALSE])
+        tau_s_hat[idx.te] <- fit$res[,1]
 
       }
 
-      theta_s_hat <- mean((pseudo_hat - tau_s_hat)^2) - mean((pseudo_hat - tau_hat)^2)
+      theta_s_hat <- mean((pseudo_hat-tau_s_hat)^2) - mean((pseudo_hat-tau_hat)^2)
 
-      psi_hat <- theta_s_hat / theta_p_hat
+      psi_hat <- theta_s_hat/theta_p_hat
 
-      phi_hat <- ((pseudo_hat - tau_s_hat)^2 -
-                    psi_hat * (pseudo_hat - tau_p_hat)^2
-                  + (psi_hat - 1)*(pseudo_hat - tau_hat)^2) / theta_p_hat
-      var.val <- 1/length(phi_hat)^2 * sum((phi_hat)^2)
+      phi_hat <- ((pseudo_hat-tau_s_hat)^2 -
+                    psi_hat * (pseudo_hat-tau_p_hat)^2
+                  + (psi_hat - 1)*(pseudo_hat-tau_hat)^2) / theta_p_hat
+      var.val <- mean(phi_hat^2)/length(phi_hat)
 
       VIM_df[i, "psi"] <- psi_hat
       VIM_df[i, "theta_s"] <- theta_s_hat
       VIM_df[i, "theta_p"] <- theta_p_hat
-      VIM_df[i, "lb"] <- max(VIM_df[i, 1] - 1.96 * sqrt(var.val), 0)
-      VIM_df[i, "ub"] <- min(VIM_df[i, 1] + 1.96 * sqrt(var.val), 1)
-      # print(VIM_df[1:i, ])
+      VIM_df[i, "lb"] <- max(VIM_df[i, 1] - 1.96*sqrt(var.val), 0)
+      VIM_df[i, "ub"] <- min(VIM_df[i, 1] + 1.96*sqrt(var.val), 1)
+      print(VIM_df[1:i, ])
     }
   return(VIM_df)
 }

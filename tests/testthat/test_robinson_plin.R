@@ -15,7 +15,7 @@ test_that("check we recover true beta if partially linear model is true", {
     return(new.x)
 
   }
-  n <- 1000
+  n <- 2000
   nsim <- 5000
   beta <- rep(NA, nsim)
   for(i in 1:nsim){

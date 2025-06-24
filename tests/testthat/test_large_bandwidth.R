@@ -104,7 +104,7 @@ test_that("expected results in simple linear second-stage model", {
   expect_true(max(abs(cate.fit$univariate.res$dr[[1]]$data$pseudo - true.pseudo)) < 1e-12)
 
   res <- cate.fit$cate.v.res$est[[1]][, 1]
-
+  summary(lm(true.pseudo ~ factor(x$x4, levels=c(2, 3))))
   true.additive_approx <- mean(true.pseudo[x$x4 == 3]) - mean(true.pseudo[x$x4 == 2])
   expect_true(abs(cate.fit$additive.res$dr[[1]]$res$theta[2] - true.additive_approx) < 1e-12)
 
