@@ -31,7 +31,8 @@ cate(
   cate.w = NULL,
   cate.not.j = NULL,
   reg.basis.not.j = NULL,
-  pl.dfs = NULL
+  pl.dfs = NULL,
+  fit.basis.additive = NULL
 )
 }
 \arguments{
@@ -111,6 +112,9 @@ It needs to be provided if \emph{univariate_reg} or \emph{partial_dependence} is
 
 \item{pl.dfs}{A list of length equal to the number of effect modifiers considered, where each element is a vector of
 candidate number of basis elements for the partially linear approximation computed via Robinson trick.}
+
+\item{fit.basis.additive}{A function to perform GAM estimation, if not provided and additive_approx=TRUE,
+drl.additive.basis() will be used.}
 }
 \value{
 A list containing the estimated CATE at v0 and per-fold estimates of the CATE at v0 for each learner.

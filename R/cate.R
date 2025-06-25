@@ -52,6 +52,8 @@
 #' @param reg.basis.not.j A function
 #' @param pl.dfs A list of length equal to the number of effect modifiers considered, where each element is a vector of
 #' candidate number of basis elements for the partially linear approximation computed via Robinson trick.
+#' @param fit.basis.additive A function to perform GAM estimation, if not provided and additive_approx=TRUE,
+#' drl.additive.basis() will be used.
 #' @return A list containing the estimated CATE at v0 and per-fold estimates of the CATE at v0 for each learner.
 #' @export
 #' @references Kennedy, EH. (2020). Optimal Doubly Robust Estimation of
@@ -73,7 +75,8 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                  cate.w=NULL,
                  cate.not.j=NULL,
                  reg.basis.not.j=NULL,
-                 pl.dfs=NULL) {
+                 pl.dfs=NULL,
+                 fit.basis.additive=NULL) {
 
   if(any(learner != "dr")) stop("Only learner = dr is currently implemented.")
 
@@ -309,10 +312,10 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
 
     if(alg != "dr") stop("Only learner = dr is currently implemented.")
 
-    if(additive_approx) {
-      additive_model <- drl.basis.additive(y=pseudo.y[[alg]], x=v, new.x=v)
-      tt <- delete.response(terms(additive_model$model))
-    }
+    # if(additive_approx) {
+    #   additive_model <- drl.basis.additive(y=pseudo.y[[alg]], x=v, new.x=v)
+    #   tt <- delete.response(terms(additive_model$model))
+    # }
     if(univariate_reg | partial_dependence | additive_approx | partially_linear) {
 
       for(j in 1:ncol(v)){
@@ -515,43 +518,49 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
         }
 
         if(additive_approx){
+          if(is.null(fit.basis.additive)) fit.basis.additive <- drl.basis.additive
+          additive_model <- fit.basis.additive(y=pseudo.y[[alg]], x=v, new.x=v)
 
-          new.dat.additive <- as.data.frame(matrix(0, nrow=length(v0.short[[j]]),
-                                                   ncol=ncol(v),
-                                                   dimnames=list(NULL, colnames(v))))
-          for(l in 1:ncol(v)) {
-            if(l == j) {
-              new.dat.additive[, l] <- v0.short[[j]]
-            } else {
-              if(is.factor(v[, l])) {
-                new.dat.additive[, l] <- factor(levels(v[, l])[1], levels=levels(v[, l]))
-              } else {
-                new.dat.additive[, l] <- min(v[, l])
-              }
-            }
-          }
-          form <- formula(additive_model$model)
-          # term_labels <- attr(terms(form), "term.labels")
-          mm <- model.matrix(additive_model$model)
-          coefs <- coef(additive_model$model)
+          res.gam <- get.smooth.fit.gam(fit=additive_model$model,
+                                        eval.pts=v0.short[[j]],
+                                        eff.modif.name=colnames(v)[j], v=v)
 
-          bs_term_for_vj <- grep(colnames(v)[j], colnames(mm), value=TRUE)
-          coefs.names.vj <- grep(colnames(v)[j], names(coefs), value=TRUE)
-
-          coefs.vj <- coefs[coefs.names.vj]
-          new.design.mat <- as.matrix(model.matrix(tt, new.dat.additive)[, bs_term_for_vj])
-
-          if(!is.factor(v[, j])) {
-            design.mat <- as.matrix(model.matrix(tt, v)[, bs_term_for_vj])
-            mean.point <- apply(design.mat, 2, mean)
-            new.design.mat <- sweep(new.design.mat, 2, mean.point, FUN = "-")
-          }
-
-          preds.j.additive <- new.design.mat %*% coefs.vj
-          beta.vcov <- sandwich::vcovHC(additive_model$model, type="HC")[coefs.names.vj, coefs.names.vj]
-          sigma2hat <- diag(new.design.mat %*% beta.vcov %*% t(new.design.mat))
-          ci.l <- preds.j.additive-1.96*sqrt(sigma2hat)
-          ci.u <- preds.j.additive+1.96*sqrt(sigma2hat)
+          # new.dat.additive <- as.data.frame(matrix(0, nrow=length(v0.short[[j]]),
+          #                                          ncol=ncol(v),
+          #                                          dimnames=list(NULL, colnames(v))))
+          # for(l in 1:ncol(v)) {
+          #   if(l == j) {
+          #     new.dat.additive[, l] <- v0.short[[j]]
+          #   } else {
+          #     if(is.factor(v[, l])) {
+          #       new.dat.additive[, l] <- factor(levels(v[, l])[1], levels=levels(v[, l]))
+          #     } else {
+          #       new.dat.additive[, l] <- min(v[, l])
+          #     }
+          #   }
+          # }
+          # form <- formula(additive_model$model)
+          # # term_labels <- attr(terms(form), "term.labels")
+          # mm <- model.matrix(additive_model$model)
+          # coefs <- coef(additive_model$model)
+          #
+          # bs_term_for_vj <- grep(colnames(v)[j], colnames(mm), value=TRUE)
+          # coefs.names.vj <- grep(colnames(v)[j], names(coefs), value=TRUE)
+          #
+          # coefs.vj <- coefs[coefs.names.vj]
+          # new.design.mat <- as.matrix(model.matrix(tt, new.dat.additive)[, bs_term_for_vj])
+          #
+          # if(!is.factor(v[, j])) {
+          #   design.mat <- as.matrix(model.matrix(tt, v)[, bs_term_for_vj])
+          #   mean.point <- apply(design.mat, 2, mean)
+          #   new.design.mat <- sweep(new.design.mat, 2, mean.point, FUN = "-")
+          # }
+          #
+          # preds.j.additive <- new.design.mat %*% coefs.vj
+          # beta.vcov <- sandwich::vcovHC(additive_model$model, type="HC")[coefs.names.vj, coefs.names.vj]
+          # sigma2hat <- diag(new.design.mat %*% beta.vcov %*% t(new.design.mat))
+          # ci.l <- preds.j.additive-1.96*sqrt(sigma2hat)
+          # ci.u <- preds.j.additive+1.96*sqrt(sigma2hat)
 
 
           # preds.j.additive <- predict.lm(additive_model$model, newdata=new.dat.additive)
@@ -563,12 +572,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
           # sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
           # ci.l <- preds.j.additive-1.96*sqrt(sigma2hat)
           # ci.u <- preds.j.additive+1.96*sqrt(sigma2hat)
-          additive_res[[alg]][[j]] <- list(res=data.frame(eval.pts=v0.short[[j]],
-                                                          theta=preds.j.additive,
-                                                          ci.ll.pts=ci.l,
-                                                          ci.ul.pts=ci.u,
-                                                          ci.ll.unif=NA,
-                                                          ci.ul.unif=NA),
+          additive_res[[alg]][[j]] <- list(res=res.gam,
                                            drl.form=additive_model$drl.form,
                                            model=additive_model$model,
                                            risk=additive_model$risk,

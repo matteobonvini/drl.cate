@@ -130,7 +130,16 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j, dfs) {
   return(out)
 }
 
-
+#' drl.basis.additive
+#' This function fits a low dimensional additive model
+#' @param y a numeric vector of outcomes
+#' @param x a matrix or data frame of covariates' values
+#' @param new.x a matrix or data frame of evaluation points
+#' @param kmin minimum number of basis terms (for each covariate) to try in LOOCV step
+#' @param kmax maximum number of basis terms (for each covariate) to try in LOOCV step.
+#' A total of kmin*kmax model will be evaluated by LOOCV.
+#' @return All the fits as well as the best model
+#' @export
 drl.basis.additive <- function(y, x, new.x, kmin=3, kmax=10) {
   require(splines)
   x <- as.data.frame(x)
@@ -173,13 +182,13 @@ drl.basis.additive <- function(y, x, new.x, kmin=3, kmax=10) {
     risk.dat <- cbind(n.basis, risk)
     if(ncol(x.cont)>0) colnames(risk.dat) <- c(colnames(x.cont), "loocv.risk")
     if(ncol(x.cont)==0) colnames(risk.dat) <- c(colnames(x.disc), "loocv.risk")
-
-  best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
-                   data=cbind(data.frame(y=y), x))
+    # other choices are possible, always plot the estimates risks!
+    best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
+                     data=cbind(data.frame(y=y), x))
 
   out <- predict(best.model, newdata=as.data.frame(new.x))
   res <- cbind(out, NA, NA)
-  return((list(drl.form=models[which.min(risk)], res=res, model=best.model,
+  return((list(drl.form=formula(best.model), res=res, model=best.model,
                risk=risk.dat, fits=fits)))
 }
 
@@ -200,4 +209,55 @@ draw_VIMP <- function(vimp_df){
     ylim(-0.1, 1) +
     coord_flip()
   fig_2b
+}
+
+#' get.smooth.fit.gam
+#' This function isolates the invdividual smooth components in low dimensional gam fit
+#' @param fit output from a low dimensional lm fit where the GAM is stored
+#' @param eval.pts the evaluation points for the additive component of interst
+#' @param eff.modif.name the name of the effect modifier
+#' @param v the matrix of effect modifiers values
+#' (the original data subsetted to the effect modifiers considered enetering the GAM)
+#' @return matrix of results: estimates and pointwise CIs.
+#' @export
+get.smooth.fit.gam <- function(fit, eval.pts, eff.modif.name, v) {
+  new.dat.additive <- as.data.frame(matrix(0, nrow=length(eval.pts),
+                                           ncol=ncol(v),
+                                           dimnames=list(NULL, colnames(v))))
+  j <- which(colnames(v)==eff.modif.name)
+  for(l in 1:ncol(v)) {
+    if(l==j) {
+      new.dat.additive[, l] <- eval.pts
+    } else {
+      if(is.factor(v[, l])) {
+        new.dat.additive[, l] <- factor(levels(v[, l])[1], levels=levels(v[, l]))
+      } else {
+        new.dat.additive[, l] <- min(v[, l])
+      }
+    }
+  }
+  form <- formula(fit)
+  mm <- model.matrix(fit)
+  coefs <- coef(fit)
+
+  bs_term_for_vj <- grep(eff.modif.name, colnames(mm), value=TRUE)
+  coefs.names.vj <- grep(eff.modif.name, names(coefs), value=TRUE)
+
+  coefs.vj <- coefs[coefs.names.vj]
+  tt <- delete.response(terms(fit))
+  new.design.mat <- as.matrix(model.matrix(tt, new.dat.additive)[, bs_term_for_vj])
+
+  if(!is.factor(v[, j])) {
+    design.mat <- as.matrix(model.matrix(tt, v)[, bs_term_for_vj])
+    mean.point <- apply(design.mat, 2, mean)
+    new.design.mat <- sweep(new.design.mat, 2, mean.point, FUN = "-")
+  }
+
+  preds.j.additive <- new.design.mat %*% coefs.vj
+  beta.vcov <- sandwich::vcovHC(fit, type="HC")[coefs.names.vj, coefs.names.vj]
+  sigma2hat <- diag(new.design.mat %*% beta.vcov %*% t(new.design.mat))
+  ci.l <- preds.j.additive-1.96*sqrt(sigma2hat)
+  ci.u <- preds.j.additive+1.96*sqrt(sigma2hat)
+  return(data.frame(eval.pts=eval.pts, theta=preds.j.additive, se=sigma2hat,
+                    ci.ll.pts=ci.l, ci.ul.pts=ci.u, ci.ll.unif=NA, ci.ul.unif=NA))
 }
