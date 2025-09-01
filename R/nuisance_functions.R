@@ -142,11 +142,11 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j, dfs) {
 #' @return All the fits as well as the best model
 #' @export
 drl.basis.additive <- function(y, x, new.x, kmin=3, kmax=10) {
-  # bsc <- function(x, ..., center = TRUE) {
-  #   B <- splines::bs(x, ...)
-  #   if (center) B <- sweep(B, 2, colMeans(B), "-")
-  #   B
-  # }
+  bsc <- function(x, ..., center = TRUE) {
+    B <- splines::bs(x, ...)
+    if (center) B <- sweep(B, 2, colMeans(B), "-")
+    B
+  }
   x <- as.data.frame(x)
   n.vals <- apply(x, 2, function(u) length(unique(u)))
   var.type <- unlist(lapply(x, function(u) paste0(class(u), collapse=" ")))
@@ -161,11 +161,11 @@ drl.basis.additive <- function(y, x, new.x, kmin=3, kmax=10) {
   for(i in 1:nrow(n.basis)){
     if(ncol(x.cont) > 0) {
       # lm.form <- paste0("~ ", paste0("poly(", colnames(x.cont)[1], ", raw = TRUE, degree = ", n.basis[i, 1], ")"))
-      lm.form <- paste0("~ ", paste0("bs(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
+      lm.form <- paste0("~ ", paste0("bsc(", colnames(x.cont)[1], ", df = ", n.basis[i, 1], ")"))
       if(ncol(x.cont) > 1) {
         for(k in 2:ncol(x.cont)) {
           # lm.form <- c(lm.form, paste0("poly(", colnames(x.cont)[k], ", raw = TRUE, degree = ", n.basis[i, k], ")"))
-          lm.form <- c(lm.form, paste0("bs(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
+          lm.form <- c(lm.form, paste0("bsc(", colnames(x.cont)[k], ", df = ", n.basis[i, k], ")"))
           }
       }
     }
