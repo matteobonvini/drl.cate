@@ -23,6 +23,7 @@ jobs:
           extra-packages: |
             any::testthat
             any::devtools
+            any::locpol
             any::ks
             any::sandwich
 
