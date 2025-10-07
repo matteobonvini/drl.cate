@@ -23,3 +23,5 @@ Collate:
     'get_pseudo_outcome.R'
     'CD.SuperLearner.R'
     'VIMP.R'
+Suggests: 
+    testthat (>= 3.0.0)
