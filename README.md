@@ -14,8 +14,7 @@ treatment effects (CATEs)**.
 It provides implementations of debiased/regularized machine learning
 methods for heterogeneous treatment effect estimation.
 
-> *Note*: This README is generated from **`README.Rmd`**. Don’t edit
-> `README.md` directly.
+> *Note*: This README is generated with the help of ChatGPT.
 
 ## Installation
 
@@ -209,8 +208,7 @@ p_theta
 
 ## Documentation
 
-- Function reference: `?drl_cate`, `?predict.drl_cate`,
-  `?summary.drl_cate`  
+- Function reference: `?cate`  
 - Vignettes (coming soon) will demonstrate end-to-end workflows.
 
 ## Contributing
