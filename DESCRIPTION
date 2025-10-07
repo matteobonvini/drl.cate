@@ -28,5 +28,6 @@ Suggests:
     covr,
     locpol,
     ks,
-    sandwich
+    sandwich,
+    nnet
 
