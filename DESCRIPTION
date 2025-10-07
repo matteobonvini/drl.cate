@@ -25,3 +25,6 @@ Collate:
     'VIMP.R'
 Suggests: 
     testthat (>= 3.0.0)
+    locpol
+    sandwich
+    ks
