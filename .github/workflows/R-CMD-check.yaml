@@ -23,6 +23,8 @@ jobs:
           extra-packages: |
             any::testthat
             any::devtools
+	    any::ks
+	    any::sandwich
 
       - name: Check
         uses: r-lib/actions/check-r-package@v2
