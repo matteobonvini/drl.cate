@@ -23,8 +23,10 @@ Collate:
     'get_pseudo_outcome.R'
     'CD.SuperLearner.R'
     'VIMP.R'
-Suggests: 
-    testthat (>= 3.0.0)
-    locpol
+Suggests:
+    testthat (>= 3.0.0),
+    covr,
+    locpol,
+    ks,
     sandwich
-    ks
+
