@@ -18,7 +18,7 @@ test_that("expected behavior of second stage local linear smoother", {
 
       require(locpol)
       fit2 <- suppressWarnings({
-        locpol(y ~ x, data=data.frame(x=A, y=pseudo.out), bw=bw, xeval=eval.pts,
+        locpol::locpol(y ~ x, data=data.frame(x=A, y=pseudo.out), bw=bw, xeval=eval.pts,
                kernel=gaussK)
         })
       est <- rep(NA, length(eval.pts))

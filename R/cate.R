@@ -220,17 +220,18 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
               w.te <-  cbind(v1j=v1.j.te, not.v1.j.te)
 
               if(sample.split.cond.dens){
-                cond.dens.fit <- cond.dens[[j]](v1=v1.j.tr, v2=v2.not.v1.j.tr)
-                cond.dens.vals[[alg]][test.idx, j] <-
+                cond.dens.fit <- cond.dens[[j]](v1=v1.j.tr, v2=not.v1.j.tr)
+                cond.dens.vals.te <-
                   cond.dens.fit$predict.cond.dens(v1=v1.j.tr, v2=not.v1.j.tr,
                                                   new.v1=v1.j.te, new.v2=not.v1.j.te)
                 if(sum(cond.dens.vals.te < 0.001) > 0) {
                   warning(paste0("Effect modifier # ", j, ". There are ",
                                  sum(cond.dens.vals.te < 0.001),
-                                 " conditional density values < 0.01. They will ",
-                                 "truncated at 0.01."))
+                                 " conditional density values < 0.001. They will ",
+                                 "truncated at 0.001."))
                   cond.dens.vals.te[cond.dens.vals.te < 0.001] <- 0.01
                 }
+                cond.dens.vals[[alg]][test.idx, j] <- cond.dens.vals.te
               }
 
               cate.w.fit[[j]][[k]] <- cate.w[[j]](tau=cate.tr, w=w.tr, new.w=w.tr)
@@ -369,7 +370,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
             marg.dens <- rep(NA, length(vj))
             for(u in unique(vj)) marg.dens[vj==u] <- mean(vj==u)
           } else {
-            marg.dens <- ks::kde(x=vj, eval.points=vj, density=TRUE)$estimate
+            marg.dens <- ks::kde(x=vj, eval.points=vj)$estimate
           }
           ghat <- marg.dens/cond.dens.vals[[alg]][, j]
           pseudo.y.pd[[alg]][, j] <-
@@ -380,7 +381,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
             res.empVar <- NULL
             for(ll in 1:length(unique(vj))) {
               pts.vj <- unique(vj)[ll]
-              if.vals <- pseudo.y[[alg]]*I(vj==pts.vj) / mean(I(vj==pts.vj))
+              if.vals <- pseudo.y[[alg]]*(vj==pts.vj) / mean(vj==pts.vj)
               tmp <- data.frame(eval.pts=pts.vj,
                                     theta=mean(if.vals),
                                     ci.ll.pts=mean(if.vals) - 1.96*sqrt(var(if.vals)/n),
@@ -399,8 +400,8 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
             for(ll in 1:length(unique(vj))) {
               pts.vj <- unique(vj)[ll]
               if.vals <- (pseudo.y[[alg]]-cate.w.vals[[alg]][, j]) *
-                I(vj==pts.vj)/cond.dens.vals[[alg]][, j]  +
-                mean(theta.bar[[alg]][I(vj==pts.vj), j])
+                (vj==pts.vj)/cond.dens.vals[[alg]][, j]  +
+                mean(theta.bar[[alg]][(vj==pts.vj), j])
               tmp <- data.frame(eval.pts=pts.vj,
                                      theta=mean(if.vals),
                                      ci.ll.pts=mean(if.vals) - 1.96*sqrt(var(if.vals)/n),

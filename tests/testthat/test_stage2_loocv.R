@@ -103,15 +103,13 @@ test_that("expected behavior of LOOCV additive basis", {
     new.x <- x
     fit <- drl.basis.additive(y, x, new.x, kmin = 3, kmax = 5)
     fit3 <- drl.basis.additive2(y, x, new.x, kmin = 3, kmax = 2)
-    fit2 <- lm(as.formula(paste0("y ", fit$drl.form)),
-               data = dat)
+    fit2 <- lm(as.formula(fit$drl.form),data = dat)
     resids <- resids3 <- rep(NA, n)
     x.mat <- model.matrix(as.formula(fit$drl.form), data = x)
     x.mat3 <- model.matrix(as.formula(fit3$drl.form), data = x)
     for(j in 1:n) {
 
-      fit.not.j3 <- lm(as.formula(paste0("y ", fit3$drl.form)),
-                      data = dat[-j, ])
+      fit.not.j3 <- lm(as.formula(paste0("y", fit3$drl.form)), data = dat[-j, ])
       resids3[j] <- y[j] - predict(fit.not.j3,
                                   newdata = x[j, , drop = FALSE])
       x.mat.j <- x.mat[-j, ]
