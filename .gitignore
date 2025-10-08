@@ -2,3 +2,9 @@
 .DS_Store
 .Rhistory
 NAMESPACE
+
+# OS & session junk
+.DS_Store
+.RData
+.Rhistory
+.Rproj.user/
