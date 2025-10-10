@@ -8,26 +8,26 @@ Authors@R:
            email = "first.last@example.com",
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Collate: 
     'cate.R'
-    'lp_r_learner.R'
-    'nuisance_functions.R'
+    'helpers.R'
     'level_set_functions.R'
     'debiased_inference_fns.R'
-    'get_pseudo_outcome.R'
-    'CD.SuperLearner.R'
     'VIMP.R'
+Imports:
+    expm,
+    ks
 Suggests:
     testthat (>= 3.0.0),
     covr,
     locpol,
     ks,
     sandwich,
-    nnet
-
+    nnet,
+    SuperLearner,
+    ggplot2,

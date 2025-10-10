@@ -1,63 +1,58 @@
 #' CATE
 #'
-#' This function estimates heterogeneous treatment effects (HTEs) defined as E(Y^1 - Y^0 | V = v0).
+#' Estimate heterogeneous treatment effects (HTEs) defined as \(E(Y^1 - Y^0 | V = v_0)\).
+#'
 #' @param data A data frame containing the dataset.
-#' @param learner A character string specifying which learner to use (e.g., "dr").
-#' @param x_names A character vector specifying the names of the confouding variables.
-#' @param y_name A character string specifying the outcome variable.
-#' @param a_name A character string specifying the treatment variable.
-#' @param v_names A character vector specifying the names of the effect modifiers.
-#' @param v0 A matrix of evaluation points, i.e., values of V for which the CATE is estimated (E(Y^1 - Y^0 | V = v0)).
-#' @param mu1.x A function taking arguments (y, a, x, new.x). It trains a model estimating
-#' E(Y | A = 1, X) and returns a list of 3 elements: res, model and fit. \emph{res} is a vector of predictions of the model evaluated at
-#' new.x, \emph{model} is the model object used to estimate E(Y | A = 1, X) and \emph{fit} is a function with argument new.x that
-#' returns the predictions of the model. See examples.
-#' @param mu0.x A function taking arguments (y, a, x, new.x). It trains a model estimating
-#' E(Y | A = 0, X) and returns a list of 3 elements: res, model and fit. \emph{res} is a vector of predictions of the model evaluated at
-#' new.x, \emph{model} is the model object used to estimate E(Y | A = 0, X) and \emph{fit} is a function with argument new.x that
-#' returns the predictions of the model. See examples.
-#' @param pi.x A function taking arguments (a, x, new.x). It trains a model estimating
-#' P(A = 1 | X) and returns a list of 3 elements: res, model and fit. \emph{res} is a vector of predictions of the model evaluated at
-#' new.x, \emph{model} is the model object used to estimate P(A = 1 | X) and \emph{fit} is a function with argument new.x that
-#' returns the predictions of the model. See examples.
-#' @param drl.v A function taking arguments (pseudo, v, new.v). It trains a model estimating E(Y^1 - Y^0 | V) by
-#' regressing a pseudo-outcome \emph{pseudo} onto v and returns a list of 3 elements: res, model and fit.
-#' \emph{res} is a vector of predictions of the model evaluated at new.v,
-#' \emph{model} is the model object used to estimate E(Y^1 - Y^0 | V) (after possibly model selection)
-#' and \emph{fit} is a function with argument new.v that returns the predictions of the model. See examples.
-#' #' @param drl.x A function taking arguments (pseudo, x, new.x). It trains a model estimating E(Y^1 - Y^0 | X) by
-#' regressing a pseudo-outcome \emph{pseudo} onto x and returns a list of 3 elements: res, model and fit.
-#' \emph{res} is a vector of predictions of the model evaluated at new.x,
-#' \emph{model} is the model object used to estimate E(Y^1 - Y^0 | X) (after possibly model selection)
-#' and \emph{fit} is a function with argument new.v that returns the predictions of the model. See examples.
-#' @param nsplits An integer indicating the number of splits used for cross-validation. Ignored if foldid is specified.
-#' @param foldid An optional vector specifying fold assignments for cross-validation.
-#' @param univariate_reg A logical indicating whether to perform univariate regression for estimating the CATE
-#' as a function of each effect modifier separately (default: FALSE).
-#' @param partial_dependence A logical indicating whether to compute partial dependence plots (default: FALSE).
-#' @param partially_linear A logical indicating whether to compute partially linear approximations
-#' via Robinson's transformation (default: FALSE).
-#' @param additive_approx A logical indicating whether to compute the CATE assuming an additive structure (default: FALSE).
-#' @param variable_importance A logical indicating whether to compute variable importance measures (default: FALSE).
-#' @param vimp_num_splits An integer specifying the number of splits for variable importance computation (default: 1).
-#' @param bw.stage2 A list of length equal to the number of effect modifiers considered, where each element if a vector of
-#' candidate bandwidths for second-stage regression of the pseudo-outcome onto the effect modifier
-#' that calculates either the univariate CATE or the Partial Dependence measure (default: NULL).
-#' It needs to be provided if \emph{univariate_reg} or \emph{partial_dependence} is set to TRUE.
-#' @param sample.split.cond.dens A logical indicating whether to do sample-splitting for conditional density estimation
-#' (default: FALSE).
-#' @param cond.dens A function
-#' @param cate.w A function
-#' @param cate.not.j A function
-#' @param reg.basis.not.j A function
-#' @param pl.dfs A list of length equal to the number of effect modifiers considered, where each element is a vector of
-#' candidate number of basis elements for the partially linear approximation computed via Robinson trick.
-#' @param fit.basis.additive A function to perform GAM estimation, if not provided and additive_approx=TRUE,
-#' drl.additive.basis() will be used.
-#' @return A list containing the estimated CATE at v0 and per-fold estimates of the CATE at v0 for each learner.
+#' @param learner Character vector of learners to use (currently only `"dr"` is implemented).
+#' @param x_names Character vector with the names of confounding variables \(X\).
+#' @param y_name Character string: outcome variable name \(Y\).
+#' @param a_name Character string: treatment variable name \(A\).
+#' @param v_names Character vector with the names of the effect modifiers \(V\).
+#' @param v0 Matrix of evaluation points; rows are values of \(V\) at which the CATE
+#'   \(E(Y^1 - Y^0 | V=v_0)\) is estimated.
+#' @param mu1.x Function \code{function(y, a, x, new.x)} that trains a model for
+#'   \(E[Y | A=1, X]\) and returns a list with elements \emph{res} (predictions at \code{new.x}),
+#'   \emph{model} (fitted model object), and \emph{fit} (predictor function of \code{new.x}).
+#' @param mu0.x Function \code{function(y, a, x, new.x)} that trains a model for
+#'   \(E[Y | A=0, X]\) and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.
+#' @param pi.x Function \code{function(a, x, new.x)} that trains a model for the propensity
+#'   \(P(A=1 | X)\) and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.
+#' @param drl.v Function \code{function(pseudo, v, new.v)} that regresses the pseudo-outcome on \(V\)
+#'   to estimate \(E(Y^1 - Y^0 | V)\), returning \emph{res}, \emph{model}, and \emph{fit}.
+#' @param drl.x Function \code{function(pseudo, x, new.x)} that regresses the pseudo-outcome on \(X\)
+#'   to estimate \(E(Y^1 - Y^0 | X)\), returning \emph{res}, \emph{model}, and \emph{fit}.
+#' @param nsplits Integer; number of splits used for cross-validation (ignored if \code{foldid} is given).
+#' @param foldid Optional integer vector of fold assignments.
+#' @param univariate_reg Logical; if \code{TRUE}, perform univariate regression of the CATE on each
+#'   effect modifier separately. Default \code{FALSE}.
+#' @param partial_dependence Logical; if \code{TRUE}, compute partial-dependence estimates. Default \code{FALSE}.
+#' @param partially_linear Logical; if \code{TRUE}, compute partially linear approximations via Robinson's transformation.
+#'   Default \code{FALSE}.
+#' @param additive_approx Logical; if \code{TRUE}, compute an additive approximation to the CATE. Default \code{FALSE}.
+#' @param variable_importance Logical; if \code{TRUE}, compute variable-importance measures. Default \code{FALSE}.
+#' @param vimp_num_splits Integer; number of splits for variable-importance computation. Default \code{1}.
+#' @param bw.stage2 List of length equal to \code{length(v_names)}; each element is a vector of candidate
+#'   bandwidths for second-stage regression used in univariate CATE or partial-dependence estimation. Required when
+#'   \code{univariate_reg} or \code{partial_dependence} is \code{TRUE}. Default \code{NULL}.
+#' @param sample.split.cond.dens Logical; if \code{TRUE}, use sample-splitting for conditional-density estimation.
+#'   Default \code{FALSE}.
+#' @param cond.dens List of functions for conditional-density estimation, one per effect modifier \(V_j\).
+#'   Each should return an object with a method \code{predict.cond.dens(new.v1, new.v2)}. Default \code{NULL}.
+#' @param cate.w List of functions \code{function(tau, w, new.w)} (one per effect modifier) that fit \(E[\tau | W]\)
+#'   and return an object with a \code{fit(new.w)} method. Default \code{NULL}.
+#' @param cate.not.j List of functions (one per \(j\)) used in the partially linear Robinson step for \(V_{-j}\). Default \code{NULL}.
+#' @param reg.basis.not.j List of basis/estimation helpers for the \(V_{-j}\) regression in the Robinson step. Default \code{NULL}.
+#' @param pl.dfs List (length \code{length(v_names)}) where each element is a vector of candidate degrees of freedom
+#'   for the partially linear approximation. Default \code{NULL}.
+#' @param fit.basis.additive Optional function used to fit the additive model (GAM); if \code{NULL} and
+#'   \code{additive_approx=TRUE}, \code{drl.additive.basis()} is used. Default \code{NULL}.
+#'
+#' @return A list with elements for V-based and X-based CATE results, per-fold estimates, pseudo-outcomes,
+#'   univariate/partial-dependence/additive/Robinson outputs, variable-importance results, and inputs used.
+#'
 #' @export
-#' @references Kennedy, EH. (2020). Optimal Doubly Robust Estimation of
-#' Heterogeneous Causal Effects. \emph{arXiv preprint arXiv:2004.14497}.
+#' @references Kennedy, E. H. (2020). Optimal Doubly Robust Estimation of Heterogeneous Causal Effects.
+#'   \emph{arXiv preprint} arXiv:2004.14497.
 
 cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                  mu1.x, mu0.x, pi.x, drl.v, drl.x,
@@ -229,7 +224,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                  sum(cond.dens.vals.te < 0.001),
                                  " conditional density values < 0.001. They will ",
                                  "truncated at 0.001."))
-                  cond.dens.vals.te[cond.dens.vals.te < 0.001] <- 0.01
+                  cond.dens.vals.te[cond.dens.vals.te < 0.001] <- 0.001
                 }
                 cond.dens.vals[[alg]][test.idx, j] <- cond.dens.vals.te
               }
@@ -587,7 +582,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
       tau_hat <- ites_x[[alg]][,1]
       pseudo_hat <- pseudo.y[[alg]]
       vimp_df <- get_VIMP(tau_hat, pseudo_hat, x, y, a, v_names,
-                          vimp_num_splits=vimp_num_splits, option=option)
+                          vimp_num_splits=vimp_num_splits)
       draw_VIMP(vimp_df)
     } else{
       vimp_df <- data.frame(matrix(ncol = 4, nrow = length(v_names)))
