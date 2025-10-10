@@ -4,7 +4,69 @@
 #' in Hines et al (2022) https://arxiv.org/pdf/2204.06030.pdf
 #'
 #' @param cate.fit object from fitting the cate using drl.cate
+#' 
+#' @param var.names A \emph{list} of character vectors. Each list element
+#'   contains the column names in \code{x} to be \emph{excluded} for one
+#'   submodel used to compute the "s" target. For example,
+#'   \code{list(c("X3"), c("X4","X5"))} requests two VIMs: one excluding
+#'   \code{X3}, and one excluding \code{X4,X5}.
 #'
+#' @param lab.var.names Character vector of display labels (one per element of
+#'   \code{var.names}). These become the row names of the returned data frame.
+#'
+#' @param x Matrix or data frame of covariates (size \eqn{n \times p}).
+#'   Required when \code{cate.fit} is \code{NULL}. Ignored otherwise.
+#'
+#' @param y Numeric outcome vector of length \eqn{n}. Required when
+#'   \code{cate.fit} is \code{NULL}. Ignored otherwise.
+#'
+#' @param a Binary treatment vector (\eqn{0/1}) of length \eqn{n}. Required when
+#'   \code{cate.fit} is \code{NULL}. Ignored otherwise.
+#'
+#' @param nsplits Integer; number of cross-fitting folds used to construct
+#'   pseudo-outcomes and nuisance fits. If \code{cate.fit} is provided, this
+#'   defaults to \code{length(unique(cate.fit$foldid))}. Otherwise it must be
+#'   provided (or it is internally sampled to create \code{foldid}).
+#'
+#' @param pi.x Function that estimates the propensity score \eqn{\pi(x) = P(A=1\mid X=x)}.
+#'   Signature: \code{pi.x(a, x, new.x)} returning a list with element
+#'   \code{$res}, a numeric vector of predicted probabilities for \code{new.x}.
+#'   Used only when \code{cate.fit} is \code{NULL}.
+#'
+#' @param mu1.x Function that estimates \eqn{\mu_1(x) = E(Y \mid A=1,X=x)}.
+#'   Signature: \code{mu1.x(y, a, x, new.x)} returning a list with element
+#'   \code{$res}, a numeric vector for \code{new.x}. Used only when
+#'   \code{cate.fit} is \code{NULL}.
+#'
+#' @param mu0.x Function that estimates \eqn{\mu_0(x) = E(Y \mid A=0,X=x)}.
+#'   Signature: \code{mu0.x(y, a, x, new.x)} returning a list with element
+#'   \code{$res}, a numeric vector for \code{new.x}. Used only when
+#'   \code{cate.fit} is \code{NULL}.
+#'
+#' @param drl.x Function that fits the pseudo-outcome regression used for the
+#'   debiased Robinson step. Signature:
+#'   \code{drl.x(pseudo, x, new.x)} returning a list with element
+#'   \code{$res}, a matrix whose first column contains predictions for
+#'   \code{new.x}. Used both when \code{cate.fit} is supplied (to refit on
+#'   restricted covariate sets) and when it is \code{NULL}.
+#' @return A data frame with one row per element of \code{var.names} and columns:
+#' \itemize{
+#'   \item \code{psi}: estimated VIM \eqn{\psi \in [0,1]}.
+#'   \item \code{theta_s}: signal explained by the restricted model.
+#'   \item \code{theta_p}: signal explained by the full model.
+#'   \item \code{lb}, \code{ub}: lower/upper 95\% Wald confidence limits,
+#'         truncated to \eqn{[0,1]}.
+#' }
+#' Row names are taken from \code{lab.var.names}.
+#'
+#' @references
+#' Hines, O., Kennedy, E. H., & Yin, M. (2022).
+#' \emph{Debiased machine learning of variable importance}.
+#' arXiv:2204.06030.
+#'
+#' @seealso \code{\link[drl.cate]{cate}}
+#'
+#' @export
 #' @export
 get_vimp <- function(cate.fit, var.names, lab.var.names,
                      x = NULL, y = NULL, a = NULL,
@@ -120,26 +182,24 @@ get_vimp <- function(cate.fit, var.names, lab.var.names,
 }
 
 
-#' draw_VIMP
-#'
-#'Function to draw the VIMP results
-#'
-#' @param VIMP_2b a get_vimp object
-#'
-#' @export
-draw_VIMP <- function(VIM_2b){
-  VIM_2b <- cbind(as.matrix(row.names(VIM_2b), nrow(VIM_2b), 1), VIM_2b)
-  colnames(VIM_2b) <- c('variable', 'psi', 'lb', 'ub')
-  VIM_2b <- VIM_2b[order(VIM_2b$DR, decreasing = FALSE),]
-  order_2b <- VIM_2b$variable
-
-  fig_2b <- ggplot(VIM_2b, aes(x = factor(variable, level = order_2b), y = DR))+
-    geom_point(size = 3) +
-    geom_errorbar(aes(ymin = Lower_Bound, ymax = Upper_Bound), width=.1, position=position_dodge(0.2))+
-    theme(axis.title.y=element_blank(),
-          axis.text.y = element_text(color = "grey20", size = 10),
-          axis.text.x = element_text(color = "grey20", size = 10)) +
-    coord_flip()
-  fig_2b
-}
+# #' draw_VIMP
+# #'Function to draw the VIMP results
+# #' @param VIMP_2b a get_vimp object
+# #' @export
+# draw_VIMP <- function(VIM_2b){
+#   VIM_2b <- cbind(as.matrix(row.names(VIM_2b), nrow(VIM_2b), 1), VIM_2b)
+#   colnames(VIM_2b) <- c('variable', 'psi', 'lb', 'ub')
+#   VIM_2b <- VIM_2b[order(VIM_2b$DR, decreasing = FALSE),]
+#   order_2b <- VIM_2b$variable
+# 
+#   fig_2b <- ggplot2::ggplot(VIM_2b, aes(x = factor(variable, level = order_2b), y = DR)) +
+#     ggplot2::geom_point(size = 3) +
+#     ggplot2::geom_errorbar(aes(ymin = Lower_Bound, ymax = Upper_Bound), width=.1,
+#                            position=position_dodge(0.2)) +
+#     ggplot2::theme(axis.title.y=element_blank(),
+#                    axis.text.y = element_text(color = "grey20", size = 10),
+#                    axis.text.x = element_text(color = "grey20", size = 10)) +
+#     ggplot2::coord_flip()
+#   fig_2b
+# }
 

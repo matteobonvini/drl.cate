@@ -22,12 +22,12 @@ get_input <- function(data, x_names, y_name, a_name, v_names, v0){
 }
 
 lm.discrete.v <- function(y, x, new.x) {
-  fit <- lm(y ~ x, data = data.frame(y = y, x = x))
+  fit <- stats::lm(y ~ x, data = data.frame(y = y, x = x))
   new.dat <- data.frame(x = new.x)
-  preds <- predict.lm(fit, newdata = new.dat)
-  tt <- delete.response(terms(fit))
-  m <- model.frame(tt, new.dat)
-  design.mat <- model.matrix(tt, m)
+  preds <- stats::predict.lm(fit, newdata = new.dat)
+  tt <- stats::delete.response(stats::terms(fit))
+  m <- stats::model.frame(tt, new.dat)
+  design.mat <- stats::model.matrix(tt, m)
   beta.vcov <- sandwich::vcovHC(fit, type = "HC")
   sigma2hat <- diag(design.mat %*% beta.vcov %*% t(design.mat))
 
@@ -101,8 +101,8 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j, dfs) {
       v.tr <- v[train.idx]
       v.te <- v[test.idx]
 
-      p.v.tr <- poly(v.tr, degree=dfs[k], raw=TRUE)
-      p.v.te <- poly(v.te, degree=dfs[k], raw=TRUE)
+      p.v.tr <- stats::poly(v.tr, degree=dfs[k], raw=TRUE)
+      p.v.te <- stats::poly(v.te, degree=dfs[k], raw=TRUE)
 
       for(j in 1:dfs[k]){
         res.v[test.idx, j] <- p.v.te[, j] - reg.basis.not.j(y=p.v.tr[, j],
@@ -111,16 +111,16 @@ robinson <- function(pseudo, w, v, new.v, s, cate.not.j, reg.basis.not.j, dfs) {
       res.y[test.idx] <- pseudo.te - cate.not.j(y=pseudo.tr, x=w.tr, new.x=w.te)
     }
 
-    fit.k <-  lm(res.y ~ -1 + res.v)
+    fit.k <- stats::lm(res.y ~ -1 + res.v)
     fits[[k]] <- fit.k
-    diag.hat.mat <- lm.influence(fit.k, do.coef=FALSE)$hat
-    risk[k] <- mean((resid(fit.k)/(1-diag.hat.mat))^2)
+    diag.hat.mat <- stats::lm.influence(fit.k, do.coef=FALSE)$hat
+    risk[k] <- mean((stats::resid(fit.k)/(1-diag.hat.mat))^2)
 
   }
   fit.star <- fits[[which.min(risk)]]
   risk.dat <- data.frame(dfs=dfs, risk=risk)
-  design.mat <- poly(new.v, degree=dfs[which.min(risk)], raw=TRUE)
-  preds <- design.mat%*%coef(fit.star)
+  design.mat <- stats::poly(new.v, degree=dfs[which.min(risk)], raw=TRUE)
+  preds <- design.mat%*%stats::coef(fit.star)
   beta.vcov <- sandwich::vcovHC(fit.star)
   sigma2hat <- diag(design.mat%*%beta.vcov%*%t(design.mat))
   ci.ll <- preds-1.96*sqrt(sigma2hat)
@@ -179,42 +179,42 @@ drl.basis.additive <- function(y, x, new.x, kmin=3, kmax=10) {
       }
     }
     lm.form <- paste0(lm.form, collapse = " + ")
-    fits[[i]] <- lm(as.formula(paste0("y", lm.form)),
-                    data=cbind(data.frame(y=y), x.cont, x.disc))
-    risk[i] <- mean((resid(fits[[i]])/(1-hatvalues(fits[[i]])))^2)
+    fits[[i]] <- stats::lm(stats::as.formula(paste0("y", lm.form)),
+                           data=cbind(data.frame(y=y), x.cont, x.disc))
+    risk[i] <- mean((stats::resid(fits[[i]])/(1-stats::hatvalues(fits[[i]])))^2)
     models[i] <- lm.form
   }
     risk.dat <- cbind(n.basis, risk)
     if(ncol(x.cont)>0) colnames(risk.dat) <- c(colnames(x.cont), "loocv.risk")
     if(ncol(x.cont)==0) colnames(risk.dat) <- c(colnames(x.disc), "loocv.risk")
     # other choices are possible, always plot the estimates risks!
-    best.model <- lm(as.formula(paste0("y", models[which.min(risk)])),
-                     data=cbind(data.frame(y=y), x))
+    best.model <- stats::lm(stats::as.formula(paste0("y", models[which.min(risk)])),
+                            data=cbind(data.frame(y=y), x))
 
-  out <- predict(best.model, newdata=as.data.frame(new.x))
+  out <- stats::predict(best.model, newdata=as.data.frame(new.x))
   res <- cbind(out, NA, NA)
-  return((list(drl.form=formula(best.model), res=res, model=best.model,
+  return((list(drl.form=stats::formula(best.model), res=res, model=best.model,
                risk=risk.dat, fits=fits)))
 }
 
-draw_VIMP <- function(vimp_df){
-  # a helper function to illustrate vimp
-
-  vimp_df <- cbind(as.matrix(row.names(vimp_df), nrow(vimp_df), 1), vimp_df)
-  colnames(vimp_df) <- c('variable', 'DR', 'Lower_Bound', 'Upper_Bound')
-  vimp_df <- vimp_df[order(vimp_df$DR, decreasing = FALSE),]
-  order_2b <- vimp_df$variable
-
-  fig_2b <- ggplot(vimp_df, aes(x = factor(variable, level = order_2b), y = DR))+
-    geom_point(size = 3) +
-    geom_errorbar(aes(ymin = Lower_Bound, ymax = Upper_Bound), width=.1, position=position_dodge(0.2))+
-    theme(axis.title.y=element_blank(),
-          axis.text.y = element_text(color = "grey20", size = 10),
-          axis.text.x = element_text(color = "grey20", size = 10)) +
-    ylim(-0.1, 1) +
-    coord_flip()
-  fig_2b
-}
+# draw_VIMP <- function(vimp_df){
+#   # a helper function to illustrate vimp
+# 
+#   vimp_df <- cbind(as.matrix(row.names(vimp_df), nrow(vimp_df), 1), vimp_df)
+#   colnames(vimp_df) <- c('variable', 'DR', 'Lower_Bound', 'Upper_Bound')
+#   vimp_df <- vimp_df[order(vimp_df$DR, decreasing = FALSE),]
+#   order_2b <- vimp_df$variable
+# 
+#   fig_2b <- ggplot(vimp_df, aes(x = factor(variable, level = order_2b), y = DR))+
+#     geom_point(size = 3) +
+#     geom_errorbar(aes(ymin = Lower_Bound, ymax = Upper_Bound), width=.1, position=position_dodge(0.2))+
+#     theme(axis.title.y=element_blank(),
+#           axis.text.y = element_text(color = "grey20", size = 10),
+#           axis.text.x = element_text(color = "grey20", size = 10)) +
+#     ylim(-0.1, 1) +
+#     coord_flip()
+#   fig_2b
+# }
 
 #' get.smooth.fit.gam
 #' This function isolates the invdividual smooth components in low dimensional gam fit
@@ -241,19 +241,19 @@ get.smooth.fit.gam <- function(fit, eval.pts, eff.modif.name, v) {
       }
     }
   }
-  form <- formula(fit)
-  mm <- model.matrix(fit)
-  coefs <- coef(fit)
+  form <- stats::formula(fit)
+  mm <- stats::model.matrix(fit)
+  coefs <- stats::coef(fit)
 
   bs_term_for_vj <- grep(eff.modif.name, colnames(mm), value=TRUE)
   coefs.names.vj <- grep(eff.modif.name, names(coefs), value=TRUE)
 
   coefs.vj <- coefs[coefs.names.vj]
-  tt <- delete.response(terms(fit))
-  new.design.mat <- as.matrix(model.matrix(tt, new.dat.additive)[, bs_term_for_vj])
+  tt <- stats::delete.response(stats::terms(fit))
+  new.design.mat <- as.matrix(stats::model.matrix(tt, new.dat.additive)[, bs_term_for_vj])
 
   if(!is.factor(v[, j])) {
-    design.mat <- as.matrix(model.matrix(tt, v)[, bs_term_for_vj])
+    design.mat <- as.matrix(stats::model.matrix(tt, v)[, bs_term_for_vj])
     mean.point <- apply(design.mat, 2, mean)
     new.design.mat <- sweep(new.design.mat, 2, mean.point, FUN = "-")
   }
@@ -276,9 +276,9 @@ get.smooth.fit.gam <- function(fit, eval.pts, eff.modif.name, v) {
 #' @param x confounders
 #' @param v1 effect modifiers 1
 #' @param v2 effect modifiers 2
-#' @param mu0x function for fitting mu0
-#' @param mu1x function for fitting mu1
-#' @param pix function for fitting propensity score
+#' @param mu0.x function for fitting mu0
+#' @param mu1.x function for fitting mu1
+#' @param pi.x function for fitting propensity score
 #' @param cond.dens function for the conditional density of any of random variable
 #' in v1 given all variables in v2
 #' @param cate.w function for fitting E(tau(X) | v2)

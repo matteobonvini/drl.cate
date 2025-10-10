@@ -23,7 +23,6 @@ cate(
   partial_dependence = FALSE,
   partially_linear = FALSE,
   additive_approx = FALSE,
-  variable_importance = FALSE,
   vimp_num_splits = 1,
   bw.stage2 = NULL,
   sample.split.cond.dens = FALSE,
@@ -49,23 +48,23 @@ cate(
 \item{v_names}{Character vector with the names of the effect modifiers \(V\).}
 
 \item{v0}{Matrix of evaluation points; rows are values of \(V\) at which the CATE
-\(E(Y^1 - Y^0 | V=v_0)\) is estimated.}
+\eqn{E(Y^1 - Y^0 | V=v_0)} is estimated.}
 
 \item{mu1.x}{Function \code{function(y, a, x, new.x)} that trains a model for
-\(E\link{Y | A=1, X}\) and returns a list with elements \emph{res} (predictions at \code{new.x}),
+\eqn{E[Y | A=1, X]} and returns a list with elements \emph{res} (predictions at \code{new.x}),
 \emph{model} (fitted model object), and \emph{fit} (predictor function of \code{new.x}).}
 
 \item{mu0.x}{Function \code{function(y, a, x, new.x)} that trains a model for
-\(E\link{Y | A=0, X}\) and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.}
+\eqn{E[Y | A=0, X]} and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.}
 
 \item{pi.x}{Function \code{function(a, x, new.x)} that trains a model for the propensity
-\(P(A=1 | X)\) and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.}
+\eqn{P(A=1 | X)} and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.}
 
 \item{drl.v}{Function \code{function(pseudo, v, new.v)} that regresses the pseudo-outcome on \(V\)
-to estimate \(E(Y^1 - Y^0 | V)\), returning \emph{res}, \emph{model}, and \emph{fit}.}
+to estimate \eqn{E(Y^1 - Y^0 | V)}, returning \emph{res}, \emph{model}, and \emph{fit}.}
 
 \item{drl.x}{Function \code{function(pseudo, x, new.x)} that regresses the pseudo-outcome on \(X\)
-to estimate \(E(Y^1 - Y^0 | X)\), returning \emph{res}, \emph{model}, and \emph{fit}.}
+to estimate \eqn{E(Y^1 - Y^0 | X)}, returning \emph{res}, \emph{model}, and \emph{fit}.}
 
 \item{nsplits}{Integer; number of splits used for cross-validation (ignored if \code{foldid} is given).}
 
@@ -81,8 +80,6 @@ Default \code{FALSE}.}
 
 \item{additive_approx}{Logical; if \code{TRUE}, compute an additive approximation to the CATE. Default \code{FALSE}.}
 
-\item{variable_importance}{Logical; if \code{TRUE}, compute variable-importance measures. Default \code{FALSE}.}
-
 \item{vimp_num_splits}{Integer; number of splits for variable-importance computation. Default \code{1}.}
 
 \item{bw.stage2}{List of length equal to \code{length(v_names)}; each element is a vector of candidate
@@ -92,15 +89,15 @@ bandwidths for second-stage regression used in univariate CATE or partial-depend
 \item{sample.split.cond.dens}{Logical; if \code{TRUE}, use sample-splitting for conditional-density estimation.
 Default \code{FALSE}.}
 
-\item{cond.dens}{List of functions for conditional-density estimation, one per effect modifier \(V_j\).
+\item{cond.dens}{List of functions for conditional-density estimation, one per effect modifier \eqn{V_j}.
 Each should return an object with a method \code{predict.cond.dens(new.v1, new.v2)}. Default \code{NULL}.}
 
-\item{cate.w}{List of functions \code{function(tau, w, new.w)} (one per effect modifier) that fit \(E\link[=\\tau | W]{\tau | W}\)
+\item{cate.w}{List of functions \code{function(tau, w, new.w)} (one per effect modifier) that fit \eqn{E[tau | W]}
 and return an object with a \code{fit(new.w)} method. Default \code{NULL}.}
 
-\item{cate.not.j}{List of functions (one per \(j\)) used in the partially linear Robinson step for \(V_{-j}\). Default \code{NULL}.}
+\item{cate.not.j}{List of functions (one per \(j\)) used in the partially linear Robinson step for \eqn{V_{-j}}. Default \code{NULL}.}
 
-\item{reg.basis.not.j}{List of basis/estimation helpers for the \(V_{-j}\) regression in the Robinson step. Default \code{NULL}.}
+\item{reg.basis.not.j}{List of basis/estimation helpers for the \eqn{V_{-j}} regression in the Robinson step. Default \code{NULL}.}
 
 \item{pl.dfs}{List (length \code{length(v_names)}) where each element is a vector of candidate degrees of freedom
 for the partially linear approximation. Default \code{NULL}.}

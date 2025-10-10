@@ -26,11 +26,11 @@ debiased_inference(
 
 \item{eval.pts}{ADD}
 
+\item{muhat.vals}{ADD}
+
 \item{mhat.obs}{ADD}
 
 \item{...}{ADD}
-
-\item{muhat.mat}{ADD}
 }
 \description{
 debiased_inference

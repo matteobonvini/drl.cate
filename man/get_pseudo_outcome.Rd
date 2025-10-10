@@ -29,18 +29,18 @@ get_pseudo_outcome(
 
 \item{v2}{effect modifiers 2}
 
+\item{mu0.x}{function for fitting mu0}
+
+\item{mu1.x}{function for fitting mu1}
+
+\item{pi.x}{function for fitting propensity score}
+
 \item{cond.dens}{function for the conditional density of any of random variable
 in v1 given all variables in v2}
 
 \item{cate.w}{function for fitting E(tau(X) | v2)}
 
 \item{nsplits}{number of splints}
-
-\item{mu0x}{function for fitting mu0}
-
-\item{mu1x}{function for fitting mu1}
-
-\item{pix}{function for fitting propensity score}
 }
 \value{
 a list containing the pseudo outcomes

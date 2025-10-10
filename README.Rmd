@@ -188,7 +188,6 @@ p_theta
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.  
-Before submitting, run `devtools::check()` and the test suite via `devtools::test()`.
 
 ## License
 

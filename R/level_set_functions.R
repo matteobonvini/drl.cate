@@ -3,7 +3,7 @@
 #' This function calculates the quantile of sup_v|tauhat(v) - tau(v)| / sigma(v)
 #' when tauhat(x) is based on a orthogonal series second stage regression.
 #' @param design.mat.v0 design matrix of evaluation points.
-#' @param design.mat.v design matrix of observed v points.
+#' @param design.mat design matrix of observed v points.
 #' @param residuals observed residuals, i.e. pseudo.y - fitted.
 #' @param B number of bootstrap replications.
 #' @param alpha 1-confidence level, e.g. alpha = 0.05.
@@ -32,10 +32,10 @@ unif_ctff_series <- function(design.mat.v0, residuals, design.mat, B, alpha) {
   sigma.hat.mat <- matrix(sigma.hat, ncol = k, nrow = nrow(design.mat.v0),
                           byrow = FALSE)
   mult <- design.mat.v0 %*% Omega.hat.sqrt / (sigma.hat.mat * sqrt(n))
-  gauss <- matrix(rnorm(k * B), ncol = B, nrow = k)
+  gauss <- matrix(stats::rnorm(k * B), ncol = B, nrow = k)
   res <- apply(abs(mult %*% gauss), 2, max)
 
-  return(list(cutoff = quantile(res, 1-alpha), sigma.hat = sigma.hat,
+  return(list(cutoff = stats::quantile(res, 1-alpha), sigma.hat = sigma.hat,
               Omega.hat.sqrt = Omega.hat.sqrt))
 }
 
@@ -66,7 +66,7 @@ cate_lvl_set <- function(theta, cate.obj, set_type = "upper",
   cate.vals <- matrix(cate.vals, nrow = length(v0$v1),
                       ncol =  length(v0$v2), byrow = FALSE)
 
-  res <- contourLines(x = v0$v1, y = v0$v2, z = cate.vals, levels = theta)
+  res <- grDevices::contourLines(x = v0$v1, y = v0$v2, z = cate.vals, levels = theta)
 
   is.there.lvl.set <- min(cate.vals) <= theta & theta <= max(cate.vals)
 

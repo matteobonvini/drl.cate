@@ -9,21 +9,19 @@ test_that("Partial dependence with independent covariates and effect modifiers",
   Y <- tau_true*A - 0.5*X[,3] + rnorm(n, 0, 1)
   
   df <- data.frame(Y=Y, A=A, X)
-  
-  # Use simple nuisance fits that are reasonably well-specified
-  # (or your package's default learners). Keep this minimal & fast.
+
   v0 <- matrix(c(seq(-2, 2, length.out = 9),seq(-2, 2, length.out = 9)), nrow=9, ncol = 2)
   colnames(v0) <- c("X1", "X2")
-  
+  SL.lib <- c("SL.mean", "SL.lm", "SL.glm")
   pi.x <- function(a, x, new.x) {
-    SL.lib <- c("SL.mean", "SL.lm", "SL.glm")
     model <- SuperLearner::SuperLearner(Y = a,
                                         X = x,
                                         newX = new.x,
                                         family = binomial(),
-                                        SL.library = SL.lib)
+                                        SL.library = SL.lib,
+                                        env = asNamespace("SuperLearner"))
     fit <- function(new.x) {
-      out <- predict.SuperLearner(model, newdata = new.x)$pred[, 1]
+      out <- stats::predict(model, newdata = new.x)$pred[, 1]
       out[out < 0.01] <- 0.01
       out[out > 0.99] <- 0.99
       return(out)
@@ -35,54 +33,50 @@ test_that("Partial dependence with independent covariates and effect modifiers",
   }
   
   mu1.x <- function(y, a, x, new.x) {
-    SL.lib <- c("SL.mean", "SL.lm", "SL.glm")
     model <- SuperLearner::SuperLearner(Y = y[a == 1],
                                         X = x[a == 1, , drop = FALSE],
                                         newX = new.x,
-                                        SL.library = SL.lib)
-    fit <- function(new.x) predict.SuperLearner(model, newdata = new.x)$pred[, 1]
+                                        SL.library = SL.lib,
+                                        env = asNamespace("SuperLearner"))
+    fit <- function(new.x) stats::predict(model, newdata = new.x)$pred[, 1]
     return(list(res = model$SL.predict[, 1], model = model, fit = fit))
   }
   
   mu0.x <- function(y, a, x, new.x) {
-    SL.lib <- c("SL.mean", "SL.lm", "SL.glm")
     model <- SuperLearner::SuperLearner(Y = y[a == 0],
                                         X = x[a == 0, , drop = FALSE],
                                         newX = new.x,
-                                        SL.library = SL.lib)
-    fit <- function(new.x) predict.SuperLearner(model, newdata = new.x)$pred[, 1]
+                                        SL.library = SL.lib,
+                                        env = asNamespace("SuperLearner"))
+    fit <- function(new.x) stats::predict(model, newdata = new.x)$pred[, 1]
     return(list(res = model$SL.predict[, 1], model = model, fit = fit))
   }
   
   drl.x <- function(pseudo, x, new.x) {
-    SL.lib <- c("SL.mean", "SL.lm", "SL.glm")
     model <- SuperLearner::SuperLearner(Y = pseudo,
                                         X = x,
                                         newX = new.x,
                                         family = gaussian(),
-                                        SL.library = SL.lib)
-    fit <- function(new.x) predict.SuperLearner(model, newdata = new.x)$pred[, 1]
+                                        SL.library = SL.lib,
+                                        env = asNamespace("SuperLearner"))
+    fit <- function(new.x) stats::predict(model, newdata = new.x)$pred[, 1]
     out <- cbind(model$SL.predict[, 1], NA, NA)
     return(list(res = out, model = model, fit = fit))
   }
   
   drl.v <- function(pseudo, v, new.v) {
-    SL.lib <- c("SL.mean", "SL.lm", "SL.glm")
     model <- SuperLearner::SuperLearner(Y = pseudo,
                                         X = v,
                                         newX = new.v,
                                         family = gaussian(),
-                                        SL.library = SL.lib)
-    fit <- function(new.x) predict.SuperLearner(model, newdata = new.v)$pred[, 1]
+                                        SL.library = SL.lib,
+                                        env = asNamespace("SuperLearner"))
+    fit <- function(new.x) stats::predict(model, newdata = new.v)$pred[, 1]
     out <- cbind(model$SL.predict[, 1], NA, NA)
     return(list(res = out, model = model, fit = fit))
   }
   
   cond.dens.V1 <- function(v1, v2) {
-    # v1 = age; v2 = all V (effect modifiers) except for age
-    # semiparametric model: V1 = E(V1 | V2) + \sigma(V2) * eps
-    # E(V1 | V2) and \sigma^2(V2) are estimated via GAM
-    # eps is univariate and its density is estimated by KDE.
     dat <- data.frame(X1=v1, X2=v2$X2)
     mean.fit <- mgcv::gam(X1 ~ s(X2), data=dat)
     preds.means <- mgcv::predict.gam(mean.fit, newdata=dat)
@@ -117,10 +111,6 @@ test_that("Partial dependence with independent covariates and effect modifiers",
   }
   
   cond.dens.V2 <- function(v1, v2) {
-    # v1 = age; v2 = all V (effect modifiers) except for age
-    # semiparametric model: V1 = E(V1 | V2) + \sigma(V2) * eps
-    # E(V1 | V2) and \sigma^2(V2) are estimated via GAM
-    # eps is univariate and its density is estimated by KDE.
     dat <- data.frame(X2=v1, X1=v2$X1)
     mean.fit <- mgcv::gam(X2 ~ s(X1), data=dat)
     preds.means <- mgcv::predict.gam(mean.fit, newdata=dat)
@@ -161,10 +151,10 @@ test_that("Partial dependence with independent covariates and effect modifiers",
                                         X = w,
                                         newX = new.w,
                                         family = gaussian(),
-                                        SL.library = SL.lib)
+                                        SL.library = SL.lib,
+                                        env = asNamespace("SuperLearner"))
 
-    fit <- function(new.w) predict.SuperLearner(model, newdata = new.w,
-                                                verbose = TRUE)$pred[, 1]
+    fit <- function(new.w) stats::predict(model, newdata = new.w, verbose = TRUE)$pred[, 1]
     return(list(res = model$SL.predict, model = model, cate.w.form = NULL,
                 fit = fit))
   }
@@ -176,7 +166,8 @@ test_that("Partial dependence with independent covariates and effect modifiers",
                                       X = x,
                                       newX = new.x,
                                       family = gaussian(),
-                                      SL.library = SL.lib)
+                                      SL.library = SL.lib,
+                                      env = asNamespace("SuperLearner"))
     
     return(fit$SL.predict)
     

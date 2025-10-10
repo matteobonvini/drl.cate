@@ -11,11 +11,11 @@ unif_ctff_series(design.mat.v0, residuals, design.mat, B, alpha)
 
 \item{residuals}{observed residuals, i.e. pseudo.y - fitted.}
 
+\item{design.mat}{design matrix of observed v points.}
+
 \item{B}{number of bootstrap replications.}
 
 \item{alpha}{1-confidence level, e.g. alpha = 0.05.}
-
-\item{design.mat.v}{design matrix of observed v points.}
 }
 \value{
 a list containing the following components:

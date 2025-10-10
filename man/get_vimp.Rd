@@ -20,8 +20,72 @@ get_vimp(
 }
 \arguments{
 \item{cate.fit}{object from fitting the cate using drl.cate}
+
+\item{var.names}{A \emph{list} of character vectors. Each list element
+contains the column names in \code{x} to be \emph{excluded} for one
+submodel used to compute the "s" target. For example,
+\code{list(c("X3"), c("X4","X5"))} requests two VIMs: one excluding
+\code{X3}, and one excluding \code{X4,X5}.}
+
+\item{lab.var.names}{Character vector of display labels (one per element of
+\code{var.names}). These become the row names of the returned data frame.}
+
+\item{x}{Matrix or data frame of covariates (size \eqn{n \times p}).
+Required when \code{cate.fit} is \code{NULL}. Ignored otherwise.}
+
+\item{y}{Numeric outcome vector of length \eqn{n}. Required when
+\code{cate.fit} is \code{NULL}. Ignored otherwise.}
+
+\item{a}{Binary treatment vector (\eqn{0/1}) of length \eqn{n}. Required when
+\code{cate.fit} is \code{NULL}. Ignored otherwise.}
+
+\item{nsplits}{Integer; number of cross-fitting folds used to construct
+pseudo-outcomes and nuisance fits. If \code{cate.fit} is provided, this
+defaults to \code{length(unique(cate.fit$foldid))}. Otherwise it must be
+provided (or it is internally sampled to create \code{foldid}).}
+
+\item{pi.x}{Function that estimates the propensity score \eqn{\pi(x) = P(A=1\mid X=x)}.
+Signature: \code{pi.x(a, x, new.x)} returning a list with element
+\code{$res}, a numeric vector of predicted probabilities for \code{new.x}.
+Used only when \code{cate.fit} is \code{NULL}.}
+
+\item{mu1.x}{Function that estimates \eqn{\mu_1(x) = E(Y \mid A=1,X=x)}.
+Signature: \code{mu1.x(y, a, x, new.x)} returning a list with element
+\code{$res}, a numeric vector for \code{new.x}. Used only when
+\code{cate.fit} is \code{NULL}.}
+
+\item{mu0.x}{Function that estimates \eqn{\mu_0(x) = E(Y \mid A=0,X=x)}.
+Signature: \code{mu0.x(y, a, x, new.x)} returning a list with element
+\code{$res}, a numeric vector for \code{new.x}. Used only when
+\code{cate.fit} is \code{NULL}.}
+
+\item{drl.x}{Function that fits the pseudo-outcome regression used for the
+debiased Robinson step. Signature:
+\code{drl.x(pseudo, x, new.x)} returning a list with element
+\code{$res}, a matrix whose first column contains predictions for
+\code{new.x}. Used both when \code{cate.fit} is supplied (to refit on
+restricted covariate sets) and when it is \code{NULL}.}
+}
+\value{
+A data frame with one row per element of \code{var.names} and columns:
+\itemize{
+\item \code{psi}: estimated VIM \eqn{\psi \in [0,1]}.
+\item \code{theta_s}: signal explained by the restricted model.
+\item \code{theta_p}: signal explained by the full model.
+\item \code{lb}, \code{ub}: lower/upper 95\\% Wald confidence limits,
+truncated to \eqn{[0,1]}.
+}
+Row names are taken from \code{lab.var.names}.
 }
 \description{
 This function calculates Variable IMPortance measures following the procedure
 in Hines et al (2022) https://arxiv.org/pdf/2204.06030.pdf
+}
+\references{
+Hines, O., Kennedy, E. H., & Yin, M. (2022).
+\emph{Debiased machine learning of variable importance}.
+arXiv:2204.06030.
+}
+\seealso{
+\code{\link[drl.cate]{cate}}
 }

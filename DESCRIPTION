@@ -20,14 +20,16 @@ Collate:
     'debiased_inference_fns.R'
     'VIMP.R'
 Imports:
+    stats,
     expm,
-    ks
+    grDevices,
+    ks,
+    sandwich
 Suggests:
     testthat (>= 3.0.0),
     covr,
     locpol,
-    ks,
-    sandwich,
     nnet,
     SuperLearner,
-    ggplot2,
+    mgcv,
+    ggplot2

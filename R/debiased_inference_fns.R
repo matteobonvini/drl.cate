@@ -72,7 +72,7 @@
   Dh <- matrix(c(c0.h, c1.h,
                  c1.h, c2.h), nrow=2)
   Dh.inv <- solve(Dh)
-  gamma.h <- coef(lm(Y ~ a.std.h, weights=kern.std.h))
+  gamma.h <- stats::coef(stats::lm(Y ~ a.std.h, weights=kern.std.h))
   res.h <- Y - (gamma.h[1] + gamma.h[2]*a.std.h)
   inf.fn <- t(Dh.inv %*% rbind(res.h*kern.std.h + int1.h,
                                a.std.h*res.h*kern.std.h + int2.h))
@@ -102,8 +102,8 @@
     # if.c2 <- h^2/2*deriv2*(term2-term1)
     if.c2 <- (h/b)^2*deriv2*(term2-term1)
 
-    model.b <- lm(Y ~ poly(a.std.b, 3), weights=kern.std.b)
-    res.b <- Y - predict(model.b)
+    model.b <- stats::lm(Y ~ poly(a.std.b, 3), weights=kern.std.b)
+    res.b <- Y - stats::predict(model.b)
     inf.fn.robust <- t(Db.inv %*% rbind(res.b*kern.std.b + int1.b,
                                         a.std.b*res.b*kern.std.b + int2.b,
                                         a.std.b^2*res.b*kern.std.b + int3.b))
@@ -167,55 +167,56 @@
   return(arg)
 }
 
-#' plot_debiased_curve
-#'
-#' @param res.df ADD
-#' @param ci ADD
-#' @param unif ADD
-#' @export
-plot_debiased_curve <- function(pseudo, exposure, res.df, ci=TRUE, unif=TRUE,
-                                add.pseudo=TRUE){
-  p <-  ggplot2::ggplot() + ggplot2::xlab("Exposure") +
-    ggplot2::ylab("Covariate-adjusted outcome") +
-    ggplot2::theme_minimal()
-  if(class(res.df$eval.pts) == "factor") {
-    if(add.pseudo) {
-      p <- p + ggplot2::geom_point(data = NULL, aes(x=as.factor(exposure), y=pseudo), col = "gray")
-    }
-    p <- p + ggplot2::geom_point(data = res.df, aes(x=eval.pts, y=theta))
-  } else {
-    if(add.pseudo) {
-      p <- p + ggplot2::geom_point(data = NULL, aes(x=exposure, y=pseudo), col = "gray")
-    }
-    p <- p + ggplot2::geom_line(data = res.df, aes(x=eval.pts, y=theta))
-  }
-  if(ci){
-    p <- p + ggplot2::geom_pointrange(data = res.df, aes(x=eval.pts, y=theta,
-                                                         ymin=ci.ll.pts,
-                                                         ymax=ci.ul.pts,
-                                                         size="Pointwise CIs"), col = "black") +
-      ggplot2::scale_size_manual("",values=c("Pointwise CIs"=0.2))
-  }
-  if(unif){
-    p <- p + ggplot2::geom_line(data = res.df, aes(x=eval.pts,
-                                                   y=ci.ll.unif,
-                                                   linetype="Uniform band"), col = "red") +
-      ggplot2::geom_line(data = res.df, aes(x=eval.pts,
-                                            y=ci.ul.unif,
-                                            linetype="Uniform band"),
-                         col = "red")+
-      ggplot2::scale_linetype_manual("",values=c("Uniform band"=2))
-  }
-  p <- p + ggplot2::theme(legend.position = "bottom") +
-    ggplot2::geom_hline(yintercept = 0, col = "blue") +
-    ggplot2::geom_hline(yintercept = mean(pseudo), col = "orange")
-  return(p)
-}
+# #' plot_debiased_curve
+# #' @param res.df ADD
+# #' @param ci ADD
+# #' @param unif ADD
+# #' @export
+# plot_debiased_curve <- function(pseudo, exposure, res.df, ci=TRUE, unif=TRUE,
+#                                 add.pseudo=TRUE){
+#   p <-  ggplot2::ggplot() + ggplot2::xlab("Exposure") +
+#     ggplot2::ylab("Covariate-adjusted outcome") +
+#     ggplot2::theme_minimal()
+#   if(class(res.df$eval.pts) == "factor") {
+#     if(add.pseudo) {
+#       p <- p + ggplot2::geom_point(data = NULL, ggplot2::aes(x=as.factor(exposure), y=pseudo), col = "gray")
+#     }
+#     p <- p + ggplot2::geom_point(data = res.df, ggplot2::aes(x=eval.pts, y=theta))
+#   } else {
+#     if(add.pseudo) {
+#       p <- p + ggplot2::geom_point(data = NULL, ggplot2::aes(x=exposure, y=pseudo), col = "gray")
+#     }
+#     p <- p + ggplot2::geom_line(data = res.df, ggplot2::aes(x=eval.pts, y=theta))
+#   }
+#   if(ci){
+#     p <- p + ggplot2::geom_pointrange(data = res.df,
+#                                       ggplot2::aes(x=.data$eval.pts,
+#                                                    y=.data$theta,
+#                                                    ymin=.data$ci.ll.pts,
+#                                                    ymax=.data$ci.ul.pts,
+#                                                    size="Pointwise CIs"), col = "black") +
+#       ggplot2::scale_size_manual("",values=c("Pointwise CIs"=0.2))
+#   }
+#   if(unif){
+#     p <- p + ggplot2::geom_line(data = res.df, aes(x=eval.pts,
+#                                                    y=ci.ll.unif,
+#                                                    linetype="Uniform band"), col = "red") +
+#       ggplot2::geom_line(data = res.df, aes(x=eval.pts,
+#                                             y=ci.ul.unif,
+#                                             linetype="Uniform band"),
+#                          col = "red")+
+#       ggplot2::scale_linetype_manual("",values=c("Uniform band"=2))
+#   }
+#   p <- p + ggplot2::theme(legend.position = "bottom") +
+#     ggplot2::geom_hline(yintercept = 0, col = "blue") +
+#     ggplot2::geom_hline(yintercept = mean(pseudo), col = "orange")
+#   return(p)
+# }
 
 #' debiased_inference
 #' @param A ADD
 #' @param pseudo.out ADD
-#' @param muhat.mat ADD
+#' @param muhat.vals ADD
 #' @param mhat.obs ADD
 #' @param debias boolean ADD
 #' @param tau ratio bandwidths ADD
@@ -237,7 +238,7 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
   n <- length(A)
   kern <- function(t){.kern(t, kernel=kernel.type)}
   if (is.null(eval.pts)){
-    eval.pts <- seq(quantile(A, 0.05), quantile(A, 0.95),
+    eval.pts <- seq(stats::quantile(A, 0.05), stats::quantile(A, 0.95),
                     length.out=min(30, length(unique(A))))
   }
   # Compute bandwidth ---------------------------------------------------------
@@ -281,13 +282,13 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
 
 
     est.res <- .lprobust(x=A, y=pseudo.out, h=h, b=b,
-                         debias=debias, eval=eval.pts,
+                         debias=debias, eval.pt=eval.pts,
                          kernel.type=kernel.type)
 
     hat.val <- .hatmatrix(x=A, y=pseudo.out, h=h, b=b, debias=debias,
                           eval.pt=eval.pts, kernel.type=kernel.type)
 
-    est.fn <- approx(eval.pts, est.res[,"theta.hat"], xout=A, rule=2)$y
+    est.fn <- stats::approx(eval.pts, est.res[,"theta.hat"], xout=A, rule=2)$y
     sq.resid <- ((pseudo.out-est.fn)/(1-hat.val))^2
     loocv.risk <- mean(sq.resid)
 
@@ -298,10 +299,10 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
     }, eval.pts, h, b, SIMPLIFY=FALSE)
     rif.se <- matrix(NA, ncol=1, nrow=length(eval.pts), dimnames=list(NULL, "est"))
     rif.se <- do.call(rbind, lapply(rinf.fns, function(u) {
-                                                 apply(u, 2, sd)/sqrt(n)
+                                                 apply(u, 2, stats::sd)/sqrt(n)
                                                }))
     alpha <- control$alpha.pts
-    z.val <- qnorm(1-alpha/2)
+    z.val <- stats::qnorm(1-alpha/2)
     ci.ll.p <- ci.ul.p <- rep(NA, length(eval.pts))
     ci.ll.p <- est.res[,"theta.hat"] - z.val*rif.se[,"est"]
     ci.ul.p <- est.res[,"theta.hat"] + z.val*rif.se[,"est"]
@@ -312,8 +313,8 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
         std.inf.vals <- do.call(cbind, lapply(rinf.fns, function(u) scale(u)))
         boot.samples <- control$bootstrap
         ep.maxes<- replicate(boot.samples,
-                             max(abs(rbind(rnorm(n)/sqrt(n)) %*% std.inf.vals)))
-        quantile(ep.maxes, alpha)
+                             max(abs(rbind(stats::rnorm(n)/sqrt(n)) %*% std.inf.vals)))
+        stats::quantile(ep.maxes, alpha)
       }
       alpha <- control$alpha.unif
       unif.quantile <- get.unif.ep(1-alpha)
@@ -362,7 +363,8 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
 .hatmatrix <- function(x, y, h, b, eval.pt=NULL, kernel.type="epa", debias=TRUE){
   # ind <- order(x); x <- x[ind]; y <- y[ind]
   if (is.null(eval.pt)){
-    eval.pt <- seq(quantile(x, 0.05), quantile(x, 0.95), length.out=30)
+    eval.pt <- seq(stats::quantile(x, 0.05), stats::quantile(x, 0.95), 
+                   length.out=30)
   }
 
   neval <- length(eval.pt)
@@ -397,7 +399,7 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
     hat.mat[i] <- (invD.h%*%t(e1*w.h.zero))[1,] -
       ((h/b)^2*c.2*invD.b%*%t(e3*w.b.zero))[3,]
   }
-  return(approx(eval.pt, hat.mat, xout=x, rule=2)$y)
+  return(stats::approx(eval.pt, hat.mat, xout=x, rule=2)$y)
 }
 
 
@@ -405,14 +407,15 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
 .robust.loocv <- function(x, y, h, b, debias, eval.pt=NULL, kernel.type="epa"){
   # ind <- order(x); x <- x[ind]; y <- y[ind]
   if (is.null(eval.pt)){
-    eval.pt <- seq(quantile(x, 0.05), quantile(x, 0.95), length.out=30)
+    eval.pt <- seq(stats::quantile(x, 0.05), stats::quantile(x, 0.95), 
+                   length.out=30)
   }
   hat.val <- .hatmatrix(x=x, y=y, h=h, b=b, debias=debias, eval.pt=eval.pt,
                         kernel.type=kernel.type)
 
   est <- .lprobust(x=x, y=y, h=h, b=b, debias=debias, eval.pt=eval.pt,
                    kernel.type=kernel.type)
-  est.fn <- approx(eval.pt, est[,"theta.hat"], xout=x, rule=2)$y
+  est.fn <- stats::approx(eval.pt, est[,"theta.hat"], xout=x, rule=2)$y
   sq.resid <- ((y-est.fn)/(1-hat.val))^2
   loocv.risk <- mean(sq.resid)
   return(data.frame(loocv.risk=loocv.risk))
@@ -423,7 +426,8 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
 .lprobust <- function(x, y, h, b, debias, eval.pt=NULL, kernel.type="epa"){
   # ind <- order(x); x <- x[ind]; y <- y[ind]
   if (is.null(eval.pt)){
-    eval.pt <- seq(quantile(x, 0.05), quantile(x, 0.95),  length.out=30)
+    eval.pt <- seq(stats::quantile(x, 0.05), stats::quantile(x, 0.95),  
+                   length.out=30)
   }
   neval <- length(eval.pt)
   estimate.mat <- matrix(NA, neval, 2)
@@ -465,7 +469,7 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
   if (kernel=="epa") w <- 0.75*(1-u^2)*(abs(u)<=1)
   if (kernel=="uni") w <- 0.5*(abs(u)<=1)
   if (kernel=="tri") w <- (1-abs(u))*(abs(u)<=1)
-  if (kernel=="gau") w <- dnorm(u)
+  if (kernel=="gau") w <- stats::dnorm(u)
   return(w)
 }
 

@@ -9,18 +9,18 @@
 #' @param a_name Character string: treatment variable name \(A\).
 #' @param v_names Character vector with the names of the effect modifiers \(V\).
 #' @param v0 Matrix of evaluation points; rows are values of \(V\) at which the CATE
-#'   \(E(Y^1 - Y^0 | V=v_0)\) is estimated.
+#'   \eqn{E(Y^1 - Y^0 | V=v_0)} is estimated.
 #' @param mu1.x Function \code{function(y, a, x, new.x)} that trains a model for
-#'   \(E[Y | A=1, X]\) and returns a list with elements \emph{res} (predictions at \code{new.x}),
+#'   \eqn{E[Y | A=1, X]} and returns a list with elements \emph{res} (predictions at \code{new.x}),
 #'   \emph{model} (fitted model object), and \emph{fit} (predictor function of \code{new.x}).
 #' @param mu0.x Function \code{function(y, a, x, new.x)} that trains a model for
-#'   \(E[Y | A=0, X]\) and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.
+#'   \eqn{E[Y | A=0, X]} and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.
 #' @param pi.x Function \code{function(a, x, new.x)} that trains a model for the propensity
-#'   \(P(A=1 | X)\) and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.
+#'   \eqn{P(A=1 | X)} and returns a list with elements \emph{res}, \emph{model}, and \emph{fit}.
 #' @param drl.v Function \code{function(pseudo, v, new.v)} that regresses the pseudo-outcome on \(V\)
-#'   to estimate \(E(Y^1 - Y^0 | V)\), returning \emph{res}, \emph{model}, and \emph{fit}.
+#'   to estimate \eqn{E(Y^1 - Y^0 | V)}, returning \emph{res}, \emph{model}, and \emph{fit}.
 #' @param drl.x Function \code{function(pseudo, x, new.x)} that regresses the pseudo-outcome on \(X\)
-#'   to estimate \(E(Y^1 - Y^0 | X)\), returning \emph{res}, \emph{model}, and \emph{fit}.
+#'   to estimate \eqn{E(Y^1 - Y^0 | X)}, returning \emph{res}, \emph{model}, and \emph{fit}.
 #' @param nsplits Integer; number of splits used for cross-validation (ignored if \code{foldid} is given).
 #' @param foldid Optional integer vector of fold assignments.
 #' @param univariate_reg Logical; if \code{TRUE}, perform univariate regression of the CATE on each
@@ -29,19 +29,19 @@
 #' @param partially_linear Logical; if \code{TRUE}, compute partially linear approximations via Robinson's transformation.
 #'   Default \code{FALSE}.
 #' @param additive_approx Logical; if \code{TRUE}, compute an additive approximation to the CATE. Default \code{FALSE}.
-#' @param variable_importance Logical; if \code{TRUE}, compute variable-importance measures. Default \code{FALSE}.
+# #' @param variable_importance Logical; if \code{TRUE}, compute variable-importance measures. Default \code{FALSE}.
 #' @param vimp_num_splits Integer; number of splits for variable-importance computation. Default \code{1}.
 #' @param bw.stage2 List of length equal to \code{length(v_names)}; each element is a vector of candidate
 #'   bandwidths for second-stage regression used in univariate CATE or partial-dependence estimation. Required when
 #'   \code{univariate_reg} or \code{partial_dependence} is \code{TRUE}. Default \code{NULL}.
 #' @param sample.split.cond.dens Logical; if \code{TRUE}, use sample-splitting for conditional-density estimation.
 #'   Default \code{FALSE}.
-#' @param cond.dens List of functions for conditional-density estimation, one per effect modifier \(V_j\).
+#' @param cond.dens List of functions for conditional-density estimation, one per effect modifier \eqn{V_j}.
 #'   Each should return an object with a method \code{predict.cond.dens(new.v1, new.v2)}. Default \code{NULL}.
-#' @param cate.w List of functions \code{function(tau, w, new.w)} (one per effect modifier) that fit \(E[\tau | W]\)
+#' @param cate.w List of functions \code{function(tau, w, new.w)} (one per effect modifier) that fit \eqn{E[tau | W]}
 #'   and return an object with a \code{fit(new.w)} method. Default \code{NULL}.
-#' @param cate.not.j List of functions (one per \(j\)) used in the partially linear Robinson step for \(V_{-j}\). Default \code{NULL}.
-#' @param reg.basis.not.j List of basis/estimation helpers for the \(V_{-j}\) regression in the Robinson step. Default \code{NULL}.
+#' @param cate.not.j List of functions (one per \(j\)) used in the partially linear Robinson step for \eqn{V_{-j}}. Default \code{NULL}.
+#' @param reg.basis.not.j List of basis/estimation helpers for the \eqn{V_{-j}} regression in the Robinson step. Default \code{NULL}.
 #' @param pl.dfs List (length \code{length(v_names)}) where each element is a vector of candidate degrees of freedom
 #'   for the partially linear approximation. Default \code{NULL}.
 #' @param fit.basis.additive Optional function used to fit the additive model (GAM); if \code{NULL} and
@@ -62,7 +62,7 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                  partial_dependence=FALSE,
                  partially_linear=FALSE,
                  additive_approx=FALSE,
-                 variable_importance=FALSE,
+                 # variable_importance=FALSE,
                  vimp_num_splits=1,
                  bw.stage2=NULL,
                  sample.split.cond.dens=FALSE,
@@ -255,8 +255,8 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                     theta.bar.vals[v1.j.te==u] <- cate.w.avg.vals[v1.j.seq==u]
                   }
                 } else {
-                  theta.bar.vals <- approx(x=v1.j.seq, y=cate.w.avg.vals,
-                                           xout=v1.j.te, rule=2)$y
+                  theta.bar.vals <- stats::approx(x=v1.j.seq, y=cate.w.avg.vals,
+                                                  xout=v1.j.te, rule=2)$y
                 }
               }
               else {
@@ -379,8 +379,8 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
               if.vals <- pseudo.y[[alg]]*(vj==pts.vj) / mean(vj==pts.vj)
               tmp <- data.frame(eval.pts=pts.vj,
                                     theta=mean(if.vals),
-                                    ci.ll.pts=mean(if.vals) - 1.96*sqrt(var(if.vals)/n),
-                                    ci.ul.pts=mean(if.vals) + 1.96*sqrt(var(if.vals)/n),
+                                    ci.ll.pts=mean(if.vals) - 1.96*sqrt(stats::var(if.vals)/n),
+                                    ci.ul.pts=mean(if.vals) + 1.96*sqrt(stats::var(if.vals)/n),
                                     ci.ul.unif=NA,
                                     ci.ll.unif=NA)
               res.empVar <- rbind(res.empVar, tmp)
@@ -399,8 +399,8 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                 mean(theta.bar[[alg]][(vj==pts.vj), j])
               tmp <- data.frame(eval.pts=pts.vj,
                                      theta=mean(if.vals),
-                                     ci.ll.pts=mean(if.vals) - 1.96*sqrt(var(if.vals)/n),
-                                     ci.ul.pts=mean(if.vals) + 1.96*sqrt(var(if.vals)/n),
+                                     ci.ll.pts=mean(if.vals) - 1.96*sqrt(stats::var(if.vals)/n),
+                                     ci.ul.pts=mean(if.vals) + 1.96*sqrt(stats::var(if.vals)/n),
                                      ci.ul.unif=NA,
                                      ci.ll.unif=NA)
               res.empVar <- rbind(res.empVar, tmp)
@@ -577,16 +577,17 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
       }
     }
 
-    if(variable_importance){
-      print('start calculating vimp')
-      tau_hat <- ites_x[[alg]][,1]
-      pseudo_hat <- pseudo.y[[alg]]
-      vimp_df <- get_VIMP(tau_hat, pseudo_hat, x, y, a, v_names,
-                          vimp_num_splits=vimp_num_splits)
-      draw_VIMP(vimp_df)
-    } else{
+    # if(variable_importance){
+      # print('start calculating vimp')
+      # tau_hat <- ites_x[[alg]][,1]
+      # pseudo_hat <- pseudo.y[[alg]]
+      # vimp_df <- get_vimp(tau_hat, pseudo_hat, x, y, a, v_names,
+      #                     vimp_num_splits=vimp_num_splits)
+      # draw_VIMP(vimp_df)
+      # warning("Please use the exported")
+    # } else{
       vimp_df <- data.frame(matrix(ncol = 4, nrow = length(v_names)))
-    }
+    # }
   }
 
   out <- lapply(learner, function(w) apply(est[[w]], c(1, 2), mean))

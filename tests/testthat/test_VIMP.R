@@ -1,4 +1,5 @@
 context("test VIMP code")
+set.seed(100)
 drl.v <- function(pseudo, v, new.v) {
   fit <- lm(y ~ ., data = cbind(data.frame(y = pseudo), v))
   out <- cbind(predict(fit, newdata = new.v), NA, NA)
