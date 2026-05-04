@@ -365,7 +365,10 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
             marg.dens <- rep(NA, length(vj))
             for(u in unique(vj)) marg.dens[vj==u] <- mean(vj==u)
           } else {
-            marg.dens <- ks::kde(x=vj, eval.points=vj)$estimate
+            marg.dens <- local({
+              h <- tryCatch(bw.SJ(vj), error = function(e) bw.nrd0(vj))
+              vapply(vj, function(z) mean(dnorm((z - vj) / h) / h), numeric(1))
+            })
           }
           ghat <- marg.dens/cond.dens.vals[[alg]][, j]
           pseudo.y.pd[[alg]][, j] <-
