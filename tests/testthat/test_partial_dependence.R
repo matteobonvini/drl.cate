@@ -89,8 +89,8 @@ test_that("Partial dependence with independent covariates and effect modifiers",
     preds.vars <- mgcv::predict.gam(var.fit, type="response", newdata=dat.var)
     
     v1.std.tr <- resid(mean.fit)/sqrt(preds.vars)
-    dens.est <- ks::kde(x=as.matrix(v1.std.tr), eval.points=v1.std.tr, density=TRUE)
-    res.tr <- dens.est$estimate/sqrt(preds.vars)
+    h.tr <- tryCatch(bw.SJ(v1.std.tr), error = function(e) bw.nrd0(v1.std.tr))
+    res.tr <- vapply(v1.std.tr, function(z) mean(dnorm((z - v1.std.tr) / h.tr) / h.tr), numeric(1)) / sqrt(preds.vars)
     
     predict.cond.dens <- function(v1, v2, new.v1, new.v2) {
       # evaluate the estimated conditional density f(v1 | v2) at f(new.v1 | new.v2)
@@ -102,8 +102,8 @@ test_that("Partial dependence with independent covariates and effect modifiers",
                                           newdata=as.data.frame(new.dat),
                                           type="response")
       v1.std.te <- (new.v1-new.preds.means)/sqrt(new.preds.vars)
-      dens.est <- ks::kde(x=as.matrix(v1.std.te), eval.points=v1.std.te, density=TRUE)
-      res <- dens.est$estimate/sqrt(new.preds.vars)
+      h.te <- tryCatch(bw.SJ(v1.std.te), error = function(e) bw.nrd0(v1.std.te))
+      res <- vapply(v1.std.te, function(z) mean(dnorm((z - v1.std.te) / h.te) / h.te), numeric(1)) / sqrt(new.preds.vars)
       return(res)
     }
     out <- list(predict.cond.dens=predict.cond.dens)
@@ -123,8 +123,8 @@ test_that("Partial dependence with independent covariates and effect modifiers",
     preds.vars <- mgcv::predict.gam(var.fit, type="response", newdata=dat.var)
     
     v1.std.tr <- resid(mean.fit)/sqrt(preds.vars)
-    dens.est <- ks::kde(x=as.matrix(v1.std.tr), eval.points=v1.std.tr, density=TRUE)
-    res.tr <- dens.est$estimate/sqrt(preds.vars)
+    h.tr <- tryCatch(bw.SJ(v1.std.tr), error = function(e) bw.nrd0(v1.std.tr))
+    res.tr <- vapply(v1.std.tr, function(z) mean(dnorm((z - v1.std.tr) / h.tr) / h.tr), numeric(1)) / sqrt(preds.vars)
     
     predict.cond.dens <- function(v1, v2, new.v1, new.v2) {
       # evaluate the estimated conditional density f(v1 | v2) at f(new.v1 | new.v2)
@@ -136,8 +136,8 @@ test_that("Partial dependence with independent covariates and effect modifiers",
                                           newdata=as.data.frame(new.dat),
                                           type="response")
       v1.std.te <- (new.v1-new.preds.means)/sqrt(new.preds.vars)
-      dens.est <- ks::kde(x=as.matrix(v1.std.te), eval.points=v1.std.te, density=TRUE)
-      res <- dens.est$estimate/sqrt(new.preds.vars)
+      h.te <- tryCatch(bw.SJ(v1.std.te), error = function(e) bw.nrd0(v1.std.te))
+      res <- vapply(v1.std.te, function(z) mean(dnorm((z - v1.std.te) / h.te) / h.te), numeric(1)) / sqrt(new.preds.vars)
       return(res)
     }
     out <- list(predict.cond.dens=predict.cond.dens)
