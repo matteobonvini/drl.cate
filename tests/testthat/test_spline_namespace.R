@@ -1,0 +1,13 @@
+test_that("additive spline formulas use the splines namespace explicitly", {
+  set.seed(615)
+  x <- data.frame(v=runif(80),w=runif(80),g=rep(0:1,40))
+  y <- sin(x$v)+x$w^2+x$g+rnorm(80,sd=.1)
+  fit <- drl.basis.additive(y,x,x,kmin=3,kmax=3)
+  terms <- attr(stats::terms(fit$model),"term.labels")
+  expect_equal(sum(grepl("splines::bs",terms,fixed=TRUE)),2L)
+  reference <- stats::lm(y ~ splines::bs(v,df=3)+splines::bs(w,df=3)+g,data=x)
+  expect_equal(unname(fit$res[,1]),unname(stats::predict(reference,x)),tolerance=1e-12)
+  profile <- additive_effect_profile(fit$model,y,x,"v",c(.2,.5,.8))
+  expect_true(all(is.finite(profile$res$theta)))
+  expect_true(all(is.finite(profile$res$se)))
+})

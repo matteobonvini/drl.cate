@@ -1,0 +1,19 @@
+.Rproj.user
+.DS_Store
+.Rhistory
+
+# OS & session junk
+.DS_Store
+.RData
+.Rhistory
+.Rproj.user/
+
+# Private research material: never publish with the R package.
+/replication_files/
+/JRSSA_Revision/
+/deliverables/
+/data_analysis/
+/data/
+*.RData
+*.rda
+*.rds
