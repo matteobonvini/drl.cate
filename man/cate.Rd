@@ -32,15 +32,14 @@ cate(
   pl.dfs = NULL,
   fit.basis.additive = NULL,
   density.ratio = NULL,
-  min.local = NULL
+  min.local = NULL,
+  cv.eval.size = 5000L,
+  cv.repeats = 5L,
+  inference.method = "lprobust",
+  bandwidth.method = NULL
 )
 }
 \arguments{
-\item{min.local}{Minimum number of observations (including ties) within each continuous local bandwidth. NULL disables enlargement (default); a positive integer enlarges bandwidths as needed, also in each deleted sample for LOOCV. Rank-deficient local fits return NA with a warning; candidates with any failed held-out prediction receive infinite risk. This does not guarantee full rank.
-For Gaussian kernels this counts observations within one bandwidth, not all
-nonzero weights. Effective bandwidths are returned in the continuous result
-tables; inference treats these selected bandwidths as fixed. Uniform bands are
-unavailable if any requested evaluation point fails.}
 \item{data}{A data frame containing the dataset.}
 
 \item{learner}{Character vector of learners to use (currently only \code{"dr"} is implemented).}
@@ -82,7 +81,7 @@ to estimate \eqn{E(Y^1 - Y^0 | X)}, returning \emph{res}, \emph{model}, and \emp
 effect modifier separately. Default \code{FALSE}.}
 
 \item{partial_dependence}{Logical; if \code{TRUE}, compute partial-dependence estimates. Default \code{FALSE}.
-Continuous-modifier inference integrates over every held-out-fold modifier
+With \code{inference.method="influence-function"}, continuous-modifier inference integrates over every held-out-fold modifier
 value using streamed prediction blocks. Pairwise predictions are not retained;
 storage grows linearly with sample size for a fixed evaluation grid. Exact
 integration still requires quadratic work within folds, but is performed
@@ -95,7 +94,8 @@ Default \code{FALSE}.}
 
 \item{bw.stage2}{List of length equal to \code{length(v_names)}; each element is a vector of candidate
 bandwidths for second-stage regression used in univariate CATE or partial-dependence estimation. Required when
-\code{univariate_reg} or \code{partial_dependence} is \code{TRUE}. Default \code{NULL}.}
+continuous curves use \code{inference.method="influence-function"}.
+Ignored by \code{"lprobust"}. Default \code{NULL}.}
 
 \item{sample.split.cond.dens}{Logical; if \code{TRUE}, use sample-splitting for conditional-density estimation.
 Default \code{FALSE}.}
@@ -131,6 +131,49 @@ Apply any desired stabilization in the supplied predictor. The final weights
 are returned in \code{pd.res$dr[[j]]$data$density.ratio}; conditional-density
 values, when present in that data frame, are \code{NA} for this pathway.
 Ignored unless \code{partial_dependence=TRUE}.}
+
+\item{min.local}{Minimum number of observations (including ties) within each
+continuous local bandwidth. For \code{"influence-function"}, NULL disables
+enlargement; a positive integer enlarges bandwidths also in each deleted
+sample for LOOCV. Rank-deficient local fits return NA with a warning and
+failed CV candidates receive infinite risk. For \code{"lprobust"}, NULL
+uses its native \code{bwcheck=21}; a positive integer overrides it, capped
+at the sample size. Neither setting guarantees full rank. Native backend
+failures propagate as errors; there is no automatic backend fallback.
+For Gaussian kernels this counts observations within one bandwidth, not
+all nonzero weights. Effective bandwidths are returned in the continuous
+result tables; inference treats these selected bandwidths as fixed.}
+
+\item{cv.eval.size}{Fixed number of randomly sampled observations for
+continuous-stage LOOCV loss evaluation (default 5000). NULL or at least n uses
+exhaustive LOOCV. Training and final estimation still use all observations.
+Only used by \code{"influence-function"}. Use set.seed() for reproducibility;
+see \code{\link[=debiased_inference]{debiased_inference()}}.}
+
+\item{cv.repeats}{Number of independent CV subsets (default 5). Bandwidths
+are selected by the median repeat winner, with candidate-grid projection;
+ignored for exhaustive CV and by \code{"lprobust"}. Continuous results contain cv and cv.debias
+diagnostics with sample indices, repeat risks and selected bandwidths.
+These indices refer to the sanitized analysis rows. Each continuous target
+and ordinary/debiased fit draws its own subsets. Interval calculations do
+not add uncertainty for the randomized bandwidth-selection step.
+Uniform bands are unavailable if any requested evaluation point fails.}
+
+\item{inference.method}{Continuous univariate CATE and PD inference backend:
+\code{"lprobust"} (default) or \code{"influence-function"} (previous procedure).
+The default calls \code{nprobust::lprobust()} once per curve with a Gaussian
+kernel, local-linear main fit, quadratic bias fit, \code{rho=1} and
+nearest-neighbor variance estimates. It supplies ordinary and robust
+bias-corrected pointwise 95 percent intervals, but no simultaneous bands.
+The previous procedure uses a cubic bias fit, includes the additional
+empirical-integration IF for PD, and retains simultaneous bands.
+Discrete modifiers, additive profiles and Robinson profiles are unaffected.}
+
+\item{bandwidth.method}{NULL selects \code{"imse-dpi"} for \code{"lprobust"}
+and \code{"LOOCV"} for \code{"influence-function"}. The native backend also
+accepts \code{"mse-dpi"}, \code{"imse-rot"}, \code{"mse-rot"},
+\code{"ce-dpi"}, and \code{"ce-rot"}. The previous backend also accepts
+\code{"LOOCV(h=b)"}. Incompatible combinations are errors.}
 }
 \value{
 A list with elements for V-based and X-based CATE results, per-fold estimates, pseudo-outcomes,
@@ -140,6 +183,22 @@ univariate/partial-dependence/additive/Robinson outputs, and inputs used.
 Estimate heterogeneous treatment effects (HTEs) defined as \(E(Y^1 - Y^0 | V = v_0)\).
 }
 \details{
+For continuous curves the \code{inference} field records the resolved backend,
+bandwidth method, polynomial orders, variance method, and availability of
+simultaneous bands and the PD integration IF. Effective bandwidths are in
+\code{res}. With \code{"lprobust"}, simultaneous interval columns and
+\code{unif.quantile} are NA; \code{cv}, \code{cv.debias}, and the risk entries
+are NULL. The existing \code{if.val.sd} columns hold standard errors from
+the selected backend, not necessarily an explicit IF calculation.
+The default PD intervals use leading-order regression inference; they omit
+empirical-integration uncertainty, which is lower order under shrinking
+bandwidths, comparable fold sizes, smoothness and moment conditions.
+Validity additionally requires appropriate cross-fitting and nuisance-rate
+conditions. This is not identical to the previous fixed-bandwidth IF variance.
+Ordinary intervals do not correct smoothing bias for the unsmoothed curve.
+Switching backends can materially change estimates, particularly at boundaries.
+Direct calls to \code{debiased_inference()} retain their existing behavior.
+
 For discrete modifiers, \code{pd.res$dr[[j]]$res} and \code{res.empVar}
 both report the cross-fitted one-step PD estimate. Its score is the
 inverse-conditional-probability weighted residual plus the fitted effect

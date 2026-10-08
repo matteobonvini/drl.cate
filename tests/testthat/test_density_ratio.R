@@ -17,7 +17,8 @@ ratio_fixture <- function(ratios=NULL, split=TRUE, min.local=NULL) {
        partial_dependence=TRUE, sample.split.cond.dens=split,
        cond.dens=rep(list(cond),2),
        cate.w=rep(list(function(tau,w,new.w) list(fit=function(new.w) rep(0,nrow(new.w)))),2),
-       bw.stage2=list(.7,NULL), density.ratio=ratios, min.local=min.local)
+       bw.stage2=list(.7,NULL), density.ratio=ratios, min.local=min.local,
+       inference.method="influence-function")
 }
 
 test_that("cate forwards min.local to continuous univariate and PD fits", {

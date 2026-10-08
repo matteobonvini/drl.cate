@@ -116,7 +116,7 @@ test_that("we get the right *optimal* bw between 0.1 and 1000", {
 
     loocv.risk45 <- debiased_inference(A=x, pseudo.out=y, debias=FALSE,
                                        eval.pts=x, bw.seq=c(h, 1000),
-                                       bandwidth.method="LOOCV",
+                                       bandwidth.method="LOOCV", cv.eval.size=NULL,
                                        kernel.type="gau")$risk
     loocv.risk4 <- loocv.risk45$loocv.risk[which(loocv.risk45$h==h)]
     loocv.risk5 <- loocv.risk45$loocv.risk[which(loocv.risk45$h==1000)]
@@ -163,7 +163,7 @@ test_that("we get the right *optimal* bw more refined", {
     loocv.risk3 <- apply(err, 2, function(x) mean(x^2))
 
     loocv.risk4 <- debiased_inference(A=x, pseudo.out=y, debias=FALSE, eval.pts=x,
-                                      bw.seq=h.seq, bandwidth.method="LOOCV",
+                                      bw.seq=h.seq, bandwidth.method="LOOCV", cv.eval.size=NULL,
                                       kernel.type="gau")$risk
 
     expect_true(max(abs(loocv.risk3 - loocv.risk4$loocv.risk)) < 1e-10)

@@ -28,7 +28,7 @@
 #' @param univariate_reg Logical; if \code{TRUE}, perform univariate regression of the CATE on each
 #'   effect modifier separately. Default \code{FALSE}.
 #' @param partial_dependence Logical; if \code{TRUE}, compute partial-dependence estimates. Default \code{FALSE}.
-#'   Continuous-modifier inference integrates over every held-out-fold modifier
+#'   With \code{inference.method="influence-function"}, continuous-modifier inference integrates over every held-out-fold modifier
 #'   value using streamed prediction blocks. Pairwise predictions are not retained;
 #'   storage grows linearly with sample size for a fixed evaluation grid. Exact
 #'   integration still requires quadratic work within folds, but is performed
@@ -38,7 +38,8 @@
 #' @param additive_approx Logical; if \code{TRUE}, compute an additive approximation to the CATE. Default \code{FALSE}.
 #' @param bw.stage2 List of length equal to \code{length(v_names)}; each element is a vector of candidate
 #'   bandwidths for second-stage regression used in univariate CATE or partial-dependence estimation. Required when
-#'   \code{univariate_reg} or \code{partial_dependence} is \code{TRUE}. Default \code{NULL}.
+#'   continuous curves use \code{inference.method="influence-function"}.
+#'   Ignored by \code{"lprobust"}. Default \code{NULL}.
 #' @param sample.split.cond.dens Logical; if \code{TRUE}, use sample-splitting for conditional-density estimation.
 #'   Default \code{FALSE}.
 #' @param cond.dens List of functions for conditional-density estimation, one per effect modifier \eqn{V_j}.
@@ -53,10 +54,43 @@
 #'   \code{additive_approx=TRUE}, \code{drl.additive.basis()} is used. Default \code{NULL}.
 #'   Its \code{model} must be an unweighted, full-rank additive \code{lm} with an
 #'   intercept, no offset, and all pseudo-outcomes as its response in input row order.
-#' @param min.local Minimum number of observations (including ties) within each continuous local bandwidth. NULL disables enlargement (default); a positive integer enlarges bandwidths as needed, also in each deleted sample for LOOCV. Rank-deficient local fits return NA with a warning; candidates with any failed held-out prediction receive infinite risk. This does not guarantee full rank.
+#' @param min.local Minimum number of observations (including ties) within each
+#'   continuous local bandwidth. For \code{"influence-function"}, NULL disables
+#'   enlargement; a positive integer enlarges bandwidths also in each deleted
+#'   sample for LOOCV. Rank-deficient local fits return NA with a warning and
+#'   failed CV candidates receive infinite risk. For \code{"lprobust"}, NULL
+#'   uses its native \code{bwcheck=21}; a positive integer overrides it, capped
+#'   at the sample size. Neither setting guarantees full rank. Native backend
+#'   failures propagate as errors; there is no automatic backend fallback.
 #'   For Gaussian kernels this counts observations within one bandwidth, not
 #'   all nonzero weights. Effective bandwidths are returned in the continuous
 #'   result tables; inference treats these selected bandwidths as fixed.
+#' @param inference.method Continuous univariate CATE and PD inference backend:
+#'   \code{"lprobust"} (default) or \code{"influence-function"} (previous procedure).
+#'   The default calls \code{nprobust::lprobust()} once per curve with a Gaussian
+#'   kernel, local-linear main fit, quadratic bias fit, \code{rho=1} and
+#'   nearest-neighbor variance estimates. It supplies ordinary and robust
+#'   bias-corrected pointwise 95 percent intervals, but no simultaneous bands.
+#'   The previous procedure uses a cubic bias fit, includes the additional
+#'   empirical-integration IF for PD, and retains simultaneous bands.
+#'   Discrete modifiers, additive profiles and Robinson profiles are unaffected.
+#' @param bandwidth.method NULL selects \code{"imse-dpi"} for \code{"lprobust"}
+#'   and \code{"LOOCV"} for \code{"influence-function"}. The native backend also
+#'   accepts \code{"mse-dpi"}, \code{"imse-rot"}, \code{"mse-rot"},
+#'   \code{"ce-dpi"}, and \code{"ce-rot"}. The previous backend also accepts
+#'   \code{"LOOCV(h=b)"}. Incompatible combinations are errors.
+#' @param cv.eval.size Fixed number of randomly sampled observations for
+#'   continuous-stage LOOCV loss evaluation (default 5000). NULL or at least n uses
+#'   exhaustive LOOCV. Training and final estimation still use all observations.
+#'   Only used by \code{"influence-function"}. Use set.seed() for reproducibility;
+#'   see [debiased_inference()].
+#' @param cv.repeats Number of independent CV subsets (default 5). Bandwidths
+#'   are selected by the median repeat winner, with candidate-grid projection;
+#'   ignored for exhaustive CV and by \code{"lprobust"}. Continuous results contain cv and cv.debias
+#'   diagnostics with sample indices, repeat risks and selected bandwidths.
+#'   These indices refer to the sanitized analysis rows. Each continuous target
+#'   and ordinary/debiased fit draws its own subsets. Interval calculations do
+#'   not add uncertainty for the randomized bandwidth-selection step.
 #'   Uniform bands are unavailable if any requested evaluation point fails.
 #' @param density.ratio Optional list, in \code{v_names} order, of functions
 #'   \code{function(v1, v2)} returning a list with
@@ -73,6 +107,22 @@
 #'   Ignored unless \code{partial_dependence=TRUE}.
 #'
 #' @details
+#' For continuous curves the \code{inference} field records the resolved backend,
+#' bandwidth method, polynomial orders, variance method, and availability of
+#' simultaneous bands and the PD integration IF. Effective bandwidths are in
+#' \code{res}. With \code{"lprobust"}, simultaneous interval columns and
+#' \code{unif.quantile} are NA; \code{cv}, \code{cv.debias}, and the risk entries
+#' are NULL. The existing \code{if.val.sd} columns hold standard errors from
+#' the selected backend, not necessarily an explicit IF calculation.
+#' The default PD intervals use leading-order regression inference; they omit
+#' empirical-integration uncertainty, which is lower order under shrinking
+#' bandwidths, comparable fold sizes, smoothness and moment conditions.
+#' Validity additionally requires appropriate cross-fitting and nuisance-rate
+#' conditions. This is not identical to the previous fixed-bandwidth IF variance.
+#' Ordinary intervals do not correct smoothing bias for the unsmoothed curve.
+#' Switching backends can materially change estimates, particularly at boundaries.
+#' Direct calls to \code{debiased_inference()} retain their existing behavior.
+#'
 #' For discrete modifiers, \code{pd.res$dr[[j]]$res} and \code{res.empVar}
 #' both report the cross-fitted one-step PD estimate. Its score is the
 #' inverse-conditional-probability weighted residual plus the fitted effect
@@ -141,8 +191,12 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                  reg.basis.not.j=NULL,
                  pl.dfs=NULL,
                  fit.basis.additive=NULL,
-                 density.ratio=NULL, min.local=NULL) {
+                 density.ratio=NULL, min.local=NULL,
+                 cv.eval.size=5000L, cv.repeats=5L,
+                 inference.method="lprobust", bandwidth.method=NULL) {
+  inference <- .resolve.inference(inference.method, bandwidth.method)
   .validate.min.local(min.local)
+  .validate.local.cv(cv.eval.size,cv.repeats)
 
   if(any(learner != "dr")) stop("Only learner = dr is currently implemented.")
 
@@ -537,20 +591,12 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
         }
         else {
           if(univariate_reg) {
-            univ.inf <- debiased_inference(A=vj,
-                                           pseudo.out=pseudo.y[[alg]],
-                                           eval.pts=v0.short[[j]],
-                                           debias=FALSE,
-                                           bandwidth.method="LOOCV",
-                                           kernel.type="gau",
-                                           bw.seq=bw.stage2[[j]], min.local=min.local)
-            univ.debias.inf <- debiased_inference(A=vj,
-                                                  pseudo.out=pseudo.y[[alg]],
-                                                  eval.pts=v0.short[[j]],
-                                                  debias=TRUE,
-                                                  bandwidth.method="LOOCV",
-                                                  kernel.type="gau",
-                                                  bw.seq=bw.stage2[[j]], min.local=min.local)
+            univ.pair <- .continuous.inference(A=vj, pseudo.out=pseudo.y[[alg]],
+              eval.pts=v0.short[[j]], inference=inference,
+              bw.seq=bw.stage2[[j]], min.local=min.local,
+              cv.eval.size=cv.eval.size, cv.repeats=cv.repeats)
+            univ.inf <- univ.pair$regular
+            univ.debias.inf <- univ.pair$debiased
             univ.res <- data.frame(eval.pts=univ.inf$res$eval.pts,
                                    theta=univ.inf$res$theta,
                                    theta.debias=univ.debias.inf$res$theta,
@@ -579,34 +625,26 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
             univariate_res[[alg]][[j]] <-
               list(data=data.frame(pseudo=pseudo.y[[alg]], exposure=vj),
                    res=univ.res,
+                   inference=univ.pair$metadata,
                    risk=list(risk=univ.inf$risk, risk.debias=univ.debias.inf$risk),
+                   cv=univ.inf$cv, cv.debias=univ.debias.inf$cv,
                    res.list=univ.inf$res.list,
                    res.list.debias=univ.debias.inf$res.list)
           }
 
           if(partial_dependence) {
 
-            muhat.vals <- .get.muhat(splits.id=s, cate.w.fit=cate.w.fit[[j]],
+            muhat.vals <- if(inference$method=="influence-function")
+              .get.muhat(splits.id=s, cate.w.fit=cate.w.fit[[j]],
                                      v1=vj, v2=v[, -j, drop=FALSE],
-                                     max.n.integral=1000)
-
-            pd.inf <- debiased_inference(A=vj, debias=FALSE,
-                                         pseudo.out=pseudo.y.pd[[alg]][, j],
-                                         eval.pts=v0.short[[j]],
-                                         mhat.obs=theta.bar[[alg]][, j],
-                                         muhat.vals=muhat.vals,
-                                         bandwidth.method="LOOCV",
-                                         kernel.type="gau",
-                                         bw.seq=bw.stage2[[j]], min.local=min.local)
-
-            pd.debias.inf <- debiased_inference(A=vj, debias=TRUE,
-                                                pseudo.out=pseudo.y.pd[[alg]][, j],
-                                                eval.pts=v0.short[[j]],
-                                                mhat.obs=theta.bar[[alg]][, j],
-                                                muhat.vals=muhat.vals,
-                                                bandwidth.method="LOOCV",
-                                                kernel.type="gau",
-                                                bw.seq=bw.stage2[[j]], min.local=min.local)
+                                     max.n.integral=1000) else NULL
+            pd.pair <- .continuous.inference(A=vj, pseudo.out=pseudo.y.pd[[alg]][,j],
+              eval.pts=v0.short[[j]], inference=inference,
+              mhat.obs=theta.bar[[alg]][,j], muhat.vals=muhat.vals, pd=TRUE,
+              bw.seq=bw.stage2[[j]], min.local=min.local,
+              cv.eval.size=cv.eval.size, cv.repeats=cv.repeats)
+            pd.inf <- pd.pair$regular
+            pd.debias.inf <- pd.pair$debiased
 
             pd.inf.res <- data.frame(eval.pts=pd.inf$res$eval.pts,
                                      theta=pd.inf$res$theta,
@@ -638,7 +676,9 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
                                    cond.dens.vals=cond.dens.vals[[alg]][, j],
                                    exposure=vj),
                    res=pd.inf.res,
+                   inference=pd.pair$metadata,
                    risk=list(risk=pd.inf$risk, risk.debias=pd.debias.inf$risk),
+                   cv=pd.inf$cv, cv.debias=pd.debias.inf$cv,
                    res.list=pd.inf$res.list,
                    res.list.debias=pd.debias.inf$res.list)
           }
@@ -747,6 +787,6 @@ cate <- function(data, learner, x_names, y_name, a_name, v_names, v0,
               v0.long=v0.long, v0.short=v0.short,
               foldid=s,
               x=x, y=y, a=a, v=v,
-              drl.x=drl.x, drl.v=drl.v)
+              drl.x=drl.x, drl.v=drl.v, inference=inference)
   return(ret)
 }

@@ -134,7 +134,7 @@ test_that("expected results in simple linear second-stage model", {
                     seq(min(data$x3), max(data$x3), length.out = 50),
                     levels(data$x5))
   colnames(v0) <- c("x1", "x3", "x5")
-  cate.fit2 <- cate(data = data, learner = "dr",
+  cate.fit2 <- cate(data = data, learner = "dr", inference.method="influence-function",
                     x_names = paste0("x", 1:5),
                     y_name = "y",
                     a_name = "a",

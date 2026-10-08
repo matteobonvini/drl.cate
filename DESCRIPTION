@@ -12,7 +12,7 @@ License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Collate: 
     'local_smoothing.R'
     'cate.R'
@@ -22,6 +22,7 @@ Collate:
 Imports:
     splines,
     stats,
+    nprobust (>= 0.4.0),
     expm,
     grDevices,
     sandwich
