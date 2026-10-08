@@ -13,11 +13,12 @@ debiased_inference(
   muhat.vals = NULL,
   mhat.obs = NULL,
   ...,
-  min.local = NULL
+  min.local = NULL,
+  cv.eval.size = 5000L,
+  cv.repeats = 5L
 )
 }
 \arguments{
-\item{min.local}{Minimum number of observations (including ties) within each continuous local bandwidth. NULL disables enlargement (default); a positive integer enlarges bandwidths as needed, also in each deleted sample for LOOCV. Rank-deficient local fits return NA with a warning; candidates with any failed held-out prediction receive infinite risk. This does not guarantee full rank.}
 \item{A}{ADD}
 
 \item{pseudo.out}{ADD}
@@ -36,22 +37,45 @@ debiased_inference(
 (default) computes intervals only after selecting bandwidths. Set
 \code{inference.all=TRUE} for the historical, expensive behavior of
 computing intervals for every candidate as well.}
+
+\item{min.local}{Minimum local observation count, including ties. NULL
+(default) disables bandwidth enlargement. Failed local fits return NA with
+a warning; failed held-out predictions give infinite candidate risk.
+Uniform bands are unavailable if any requested point fails. Effective
+bandwidths are returned as h.effective and b.effective. Inference treats
+the selected effective bandwidths as fixed.}
+
+\item{cv.eval.size}{Number of randomly sampled observations at which to
+evaluate leave-one-out loss (default 5000); NULL or at least n uses exhaustive
+LOOCV. All other observations remain in each deleted regression. Use
+set.seed() for reproducibility. This approximates bandwidth selection only.}
+
+\item{cv.repeats}{Number of independent subsets (default 5). Each subset is
+reused across all candidates. Select the coordinatewise median of repeat
+winners, projected to the nearest candidate with finite risk in every
+repeat using squared log-bandwidth distance; ties use mean risk then larger
+bandwidths. Ignored for exhaustive CV. Final estimation uses all rows.}
 }
 \value{
 A list with \code{res} (selected estimates and intervals),
 \code{risk} (all candidate LOOCV risks), and \code{res.list} (candidate
 estimates; unselected interval fields are \code{NA} by default).
 }
-\details{
-Bandwidth selection does not evaluate PD nuisance predictions or simulate
-confidence bands in the default mode. Selected PD inference reuses the supplied
-fitted nuisances; it does not retrain them. Pointwise results agree with exhaustive
-inference up to numerical rounding. Uniform bands may differ because skipping
-candidate simulations changes RNG use.
-Uniform bands are unavailable if any requested point fails. Effective bandwidths
-are returned as \code{h.effective} and \code{b.effective}; inference treats these
-selected bandwidths as fixed.
-}
 \description{
 debiased_inference
+}
+\details{
+Bandwidth selection does not evaluate PD nuisance predictions or
+simulate confidence bands in the default mode. Selected PD inference
+reuses the supplied fitted nuisances; it does not retrain them. Pointwise
+results agree with exhaustive inference up to numerical rounding. Uniform
+bands may differ because skipping candidate simulations changes RNG use.
+Subsampled CV retains full-data estimation. Candidate risks are means over
+repeats, whereas bandwidth selection uses median repeat winners and need
+not minimize that mean. The returned cv list records indices, candidate
+bandwidths, the candidate-by-repeat risk matrix, repeat winners, median
+bandwidths and the selected candidate index. For fixed subset size and
+repeat count, CV loss evaluation scales linearly in n per candidate;
+separate full-fold PD integration may still require quadratic work.
+Intervals do not add uncertainty for the randomized selection step.
 }

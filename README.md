@@ -23,6 +23,22 @@ methods for heterogeneous treatment effect estimation.
 devtools::install_github("matteobonvini/drl.cate")
 ```
 
+## Continuous-curve inference
+
+`cate()` now defaults to `inference.method = "lprobust"`: Gaussian local-linear
+regression with plug-in bandwidths, quadratic bias correction, and pointwise
+95% intervals. Simultaneous-band columns are `NA`. For PD, these intervals omit
+the additional empirical-integration influence-function term; their validity
+requires the corresponding shrinking-bandwidth and nuisance-rate conditions.
+
+Use `inference.method = "influence-function"` with `bw.stage2` to retain the
+previous cubic bias correction, subsampled LOOCV, PD integration uncertainty,
+and simultaneous bands. `bandwidth.method = NULL` resolves to `"imse-dpi"` or
+`"LOOCV"`, respectively. Each continuous result records these choices in
+`inference`. Discrete, additive, and Robinson estimators are unchanged.
+
+The example below explicitly retains the previous backend for its displayed figure.
+
 ## Example
 
 ``` r
@@ -147,6 +163,7 @@ drl.v <- function(pseudo, v, new.v) {
 # --------------------------- Run learner ---------------------------
 
 out <- cate(
+  inference.method = "influence-function",
   data    = df,
   learner = "dr",
   x_names = x_names,

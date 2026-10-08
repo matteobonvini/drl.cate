@@ -4,6 +4,61 @@
 # Main reference is https://arxiv.org/abs/2210.06448
 # Article and repository authored by Kenta Takatsu and Ted Westling.
 
+# Continuous cate() backend. Keep debiased_inference() itself unchanged so
+# existing direct callers retain the original influence-function procedure.
+.resolve.inference <- function(inference.method, bandwidth.method) {
+  inference.method <- match.arg(inference.method, c("lprobust", "influence-function"))
+  allowed <- if(inference.method=="lprobust")
+    c("imse-dpi", "mse-dpi", "imse-rot", "mse-rot", "ce-dpi", "ce-rot") else
+    c("LOOCV", "LOOCV(h=b)")
+  if(is.null(bandwidth.method)) bandwidth.method <- allowed[1L]
+  if(!is.character(bandwidth.method) || length(bandwidth.method)!=1L ||
+     is.na(bandwidth.method) || !bandwidth.method %in% allowed)
+    stop("bandwidth.method for inference.method = '", inference.method,
+         "' must be one of: ", paste(allowed, collapse=", "))
+  list(method=inference.method, bandwidth.method=bandwidth.method)
+}
+
+.continuous.inference <- function(A, pseudo.out, eval.pts, inference,
+                                  bw.seq=NULL, min.local=NULL,
+                                  cv.eval.size=5000L, cv.repeats=5L,
+                                  muhat.vals=NULL, mhat.obs=NULL, pd=FALSE) {
+  native <- inference$method=="lprobust"
+  metadata <- c(inference, list(p=1L, q=if(native) 2L else 3L,
+    kernel="gau", uniform.bands=!native,
+    pd.integration.if=if(pd) !native else NA,
+    variance=if(native) "nn" else "influence-function", min.local=min.local))
+  if(!native) {
+    run <- function(debias) debiased_inference(A=A, pseudo.out=pseudo.out,
+      eval.pts=eval.pts, debias=debias, bandwidth.method=inference$bandwidth.method,
+      kernel.type="gau", bw.seq=bw.seq, min.local=min.local,
+      cv.eval.size=cv.eval.size, cv.repeats=cv.repeats,
+      muhat.vals=muhat.vals, mhat.obs=mhat.obs)
+    return(list(regular=run(FALSE), debiased=run(TRUE), metadata=metadata))
+  }
+  # Native default floor, capped at n for small samples. Explicit min.local
+  # overrides the floor; it is not a guarantee of a full-rank local fit.
+  bwcheck <- min(length(A), if(is.null(min.local)) 21L else min.local)
+  fit <- nprobust::lprobust(y=pseudo.out, x=A, eval=eval.pts, p=1L,
+    kernel="gau", bwselect=inference$bandwidth.method, rho=1,
+    bwcheck=bwcheck, vce="nn", covgrid=FALSE, level=95)
+  est <- fit$Estimate
+  convert <- function(debias) {
+    theta <- est[,if(debias) "tau.bc" else "tau.us"]
+    se <- est[,if(debias) "se.rb" else "se.us"]
+    res <- data.frame(eval.pts=est[,"eval"], theta=theta,
+      ci.ul.pts=theta+stats::qnorm(.975)*se,
+      ci.ll.pts=theta-stats::qnorm(.975)*se,
+      ci.ul.unif=NA_real_, ci.ll.unif=NA_real_,
+      if.val.sd=se, unif.quantile=NA_real_, h=est[,"h"], b=est[,"b"],
+      h.effective=est[,"h"], b.effective=est[,"b"], loocv.risk=NA_real_)
+    list(res=res, risk=NULL, cv=NULL, res.list=list(res))
+  }
+  metadata$bwcheck <- bwcheck
+  metadata$rho <- 1
+  list(regular=convert(FALSE), debiased=convert(TRUE), metadata=metadata)
+}
+
 # Cross-fitted empirical version of the supplement's PD marginalization IF:
 # integrate over all modifier observations in the held-out fold, with the
 # nuisance regression trained outside that fold. By default keep a lazy source,
@@ -317,6 +372,15 @@
 #'   Uniform bands are unavailable if any requested point fails. Effective
 #'   bandwidths are returned as h.effective and b.effective. Inference treats
 #'   the selected effective bandwidths as fixed.
+#' @param cv.eval.size Number of randomly sampled observations at which to
+#'   evaluate leave-one-out loss (default 5000); NULL or at least n uses exhaustive
+#'   LOOCV. All other observations remain in each deleted regression. Use
+#'   set.seed() for reproducibility. This approximates bandwidth selection only.
+#' @param cv.repeats Number of independent subsets (default 5). Each subset is
+#'   reused across all candidates. Select the coordinatewise median of repeat
+#'   winners, projected to the nearest candidate with finite risk in every
+#'   repeat using squared log-bandwidth distance; ties use mean risk then larger
+#'   bandwidths. Ignored for exhaustive CV. Final estimation uses all rows.
 #' @return A list with \code{res} (selected estimates and intervals),
 #'   \code{risk} (all candidate LOOCV risks), and \code{res.list} (candidate
 #'   estimates; unselected interval fields are \code{NA} by default).
@@ -325,10 +389,20 @@
 #'   reuses the supplied fitted nuisances; it does not retrain them. Pointwise
 #'   results agree with exhaustive inference up to numerical rounding. Uniform
 #'   bands may differ because skipping candidate simulations changes RNG use.
+#'   Subsampled CV retains full-data estimation. Candidate risks are means over
+#'   repeats, whereas bandwidth selection uses median repeat winners and need
+#'   not minimize that mean. The returned cv list records indices, candidate
+#'   bandwidths, the candidate-by-repeat risk matrix, repeat winners, median
+#'   bandwidths and the selected candidate index. For fixed subset size and
+#'   repeat count, CV loss evaluation scales linearly in n per candidate;
+#'   separate full-fold PD integration may still require quadratic work.
+#'   Intervals do not add uncertainty for the randomized selection step.
 #' @export
 debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
-                               muhat.vals=NULL, mhat.obs=NULL, ..., min.local=NULL){
+                               muhat.vals=NULL, mhat.obs=NULL, ..., min.local=NULL,
+                               cv.eval.size=5000L, cv.repeats=5L){
   .validate.min.local(min.local)
+  .validate.local.cv(cv.eval.size,cv.repeats)
   # Parse control inputs ------------------------------------------------------
   # control <- .parse.debiased_inference(alpha=0.05, unif=FALSE, kernel.type = "gau",
   #                                      eval.pts = x, A = x, pseudo.out=y, debias=FALSE,
@@ -366,13 +440,15 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
   }
 
 
-  est.proc <- function(h, b, inference=TRUE, estimate=NULL){
+  cv <- .local.cv(A,pseudo.out,bw.seq.h,bw.seq.b,debias,kernel.type,
+                  min.local,cv.eval.size,cv.repeats)
+  est.proc <- function(h, b, inference=TRUE, estimate=NULL, risk=NULL){
     h.effective <- vapply(eval.pts, function(a) .local.bandwidth(A,a,h,min.local), numeric(1))
     b.effective <- if(debias) vapply(eval.pts, function(a) .local.bandwidth(A,a,b,min.local), numeric(1)) else rep(b,length(eval.pts))
     if(is.null(estimate)) {
       est.res <- .lprobust(A, pseudo.out, h, b, debias, eval.pts,
                           kernel.type, min.local, warn=FALSE)
-      loocv.risk <- .local.loo(A,pseudo.out,h,b,debias,kernel.type,min.local)$risk
+      loocv.risk <- risk
     } else {
       est.res <- cbind(eval=estimate$eval.pts, theta.hat=estimate$theta)
       loocv.risk <- estimate$loocv.risk[1]
@@ -445,7 +521,7 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
       loocv.risk=loocv.risk)
   }
 
-  res.list <- mapply(est.proc, bw.seq.h, bw.seq.b,
+  res.list <- mapply(est.proc, bw.seq.h, bw.seq.b, risk=cv$risk,
                      MoreArgs=list(inference=control$inference.all), SIMPLIFY=FALSE)
   loocv.vals <- matrix(NA, ncol = 3, nrow = length(res.list),
                        dimnames=list(NULL, c("loocv.risk", "h", "b")))
@@ -456,9 +532,7 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
   }
   if(!any(is.finite(loocv.vals[,1])))
     stop("All bandwidth candidates have failed leave-one-out predictions; increase bw.seq or min.local.")
-  tied <- which(is.finite(loocv.vals[,1]) &
-                  abs(loocv.vals[,1]-min(loocv.vals[,1]))<1e-6)
-  selected <- tied[order(-loocv.vals[tied,2],-loocv.vals[tied,3])[1]]
+  selected <- cv$selected
   h.opt <- unname(loocv.vals[selected,2]); b.opt <- unname(loocv.vals[selected,3])
   estimate <- res.list[[selected]]
   res <- est.proc(h=h.opt, b=b.opt, estimate=estimate)
@@ -469,7 +543,8 @@ debiased_inference <- function(A, pseudo.out, debias, tau=1, eval.pts=NULL,
   if(failed) warning(failed, " evaluation point(s) could not be estimated; affected results are NA.",
                      if(control$unif) " Uniform bands are unavailable over the requested grid." else "",
                      call.=FALSE)
-  return(list(res=res, risk=as.data.frame(loocv.vals), res.list=res.list))
+  return(list(res=res, risk=as.data.frame(loocv.vals), res.list=res.list,
+              cv=cv$diagnostics))
 }
 
 

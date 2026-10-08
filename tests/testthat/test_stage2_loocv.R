@@ -23,12 +23,12 @@ test_that("expected behavior of second stage bw selector", {
                               bw.seq=h, eval.pts=x,
                               kernel.type="epa",
                               debias=FALSE,
-                              bandwidth.method="LOOCV")
+                              bandwidth.method="LOOCV", cv.eval.size=NULL)
     res.db <- debiased_inference(A=x, pseudo.out=y,
                                  bw.seq=h, eval.pts=x,
                                  kernel.type="epa",
                                  debias=TRUE,
-                                 bandwidth.method="LOOCV")
+                                 bandwidth.method="LOOCV", cv.eval.size=NULL)
 
    expect_true(abs(loocv.risk - res$risk$loocv.risk) < 1e-10 ||
                is.infinite(loocv.risk))

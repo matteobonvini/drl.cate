@@ -15,7 +15,7 @@ test_that("selected-only inference preserves estimates and avoids repeated PD pr
   run <- function(debias, all, unif=FALSE) debiased_inference(
     v,y,debias,eval.pts=c(-.7,0,.7),bw.seq=c(1,1.5),
     bandwidth.method="LOOCV",kernel.type="gau",unif=unif,
-    bootstrap=20,muhat.vals=src,mhat.obs=m,inference.all=all)
+    bootstrap=20,muhat.vals=src,mhat.obs=m,inference.all=all,cv.eval.size=NULL)
   for(debias in c(FALSE,TRUE)) {
     calls <- 0L
     slow <- run(debias,TRUE)

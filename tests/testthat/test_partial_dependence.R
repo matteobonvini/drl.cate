@@ -176,6 +176,7 @@ test_that("Partial dependence with independent covariates and effect modifiers",
   reg.basis.not.j <- cate.not.j
   
   fit <- suppressWarnings(cate(
+    inference.method="influence-function",
     data=df, x_names=c("X1","X2","X3"), y_name="Y", a_name="A",
     v_names=c("X1", "X2"), v0=v0, learner="dr", pi.x=pi.x, mu1.x=mu1.x, mu0.x=mu0.x, 
     drl.x=drl.x, drl.v=drl.v, nsplits=1, partial_dependence = TRUE,

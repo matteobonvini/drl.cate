@@ -156,7 +156,7 @@ test_that("explicit minimum local counts enlarge bandwidths across gaps", {
                            levels(x$x5))
     colnames(v0.long) <- c("x1", "x3", "x5")
     cate.fit <- suppressWarnings({
-      cate(data = data, learner = "dr",
+      cate(data = data, learner = "dr", inference.method="influence-function",
            x_names = paste0("x", 1:5),
            y_name = "y",
            a_name = "a",
@@ -180,7 +180,7 @@ test_that("explicit minimum local counts enlarge bandwidths across gaps", {
     bw.min <- .local.bandwidth(x[, 1], v0.long$x1[1], 0.05, 10)
 
     fit2 <- suppressWarnings({
-      cate(data = data, learner = "dr",
+      cate(data = data, learner = "dr", inference.method="influence-function",
            x_names = paste0("x", 1:5),
            y_name = "y",
            a_name = "a",
