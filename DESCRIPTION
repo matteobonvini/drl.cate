@@ -1,6 +1,6 @@
 Package: drl.cate
 Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Version: 0.0.0.9001
 Authors@R: 
     person(given = "First",
            family = "Last",
@@ -25,7 +25,8 @@ Imports:
     nprobust (>= 0.4.0),
     expm,
     grDevices,
-    sandwich
+    sandwich,
+    parallel
 Suggests:
     testthat (>= 3.0.0),
     covr,

@@ -114,31 +114,40 @@
 
 # Accumulate all requested weighted integrals in one pass over prediction
 # blocks. The output is n by number-of-weights; no n_k by n_k matrix is saved.
+# Fork addition: column blocks are independent and draw no random numbers, so
+# under options(drl.cate.cores=k) they run in k forked workers, with the same
+# result as the serial loop.
 .pd.integrate <- function(source, weights, mhat) {
   n <- length(source$v1)
   if(length(mhat)!=n || any(!is.finite(mhat)) || nrow(weights)!=n) {
     stop("PD integration needs finite marginal predictions and aligned weights")
   }
   out <- matrix(0, n, ncol(weights))
+  tasks <- list()
   for(k in seq_along(source$fits)) {
     idx <- which(source$splits.id==k)
     blocks <- split(idx, ceiling(seq_along(idx)/source$block.size))
-    for(cols in blocks) {
-      accum <- matrix(0, length(cols), ncol(weights))
-      for(rows in blocks) {
-        new.w <- cbind(v1j=rep(source$v1[rows], times=length(cols)),
-                       source$v2[rep(cols, each=length(rows)), , drop=FALSE])
-        pred <- source$fits[[k]]$fit(new.w)
-        if(!is.numeric(pred) || length(pred)!=nrow(new.w) ||
-           any(!is.finite(pred))) {
-          stop("PD integration predictions must be finite and match the prediction grid")
-        }
-        centered <- matrix(pred, nrow=length(rows), ncol=length(cols))-mhat[rows]
-        accum <- accum + crossprod(centered, weights[rows, , drop=FALSE])
-      }
-      out[cols, ] <- accum/length(idx)
-    }
+    for(cols in blocks)
+      tasks[[length(tasks)+1L]] <- list(k=k, cols=cols, blocks=blocks, n.k=length(idx))
   }
+  block.integral <- function(task) {
+    k <- task$k; cols <- task$cols
+    accum <- matrix(0, length(cols), ncol(weights))
+    for(rows in task$blocks) {
+      new.w <- cbind(v1j=rep(source$v1[rows], times=length(cols)),
+                     source$v2[rep(cols, each=length(rows)), , drop=FALSE])
+      pred <- source$fits[[k]]$fit(new.w)
+      if(!is.numeric(pred) || length(pred)!=nrow(new.w) ||
+         any(!is.finite(pred))) {
+        stop("PD integration predictions must be finite and match the prediction grid")
+      }
+      centered <- matrix(pred, nrow=length(rows), ncol=length(cols))-mhat[rows]
+      accum <- accum + crossprod(centered, weights[rows, , drop=FALSE])
+    }
+    accum/task$n.k
+  }
+  res <- .drl.lapply(tasks, block.integral)
+  for(i in seq_along(tasks)) out[tasks[[i]]$cols, ] <- res[[i]]
   out
 }
 

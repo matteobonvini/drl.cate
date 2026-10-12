@@ -52,6 +52,9 @@
 }
 
 # Exact componentwise deletion; repeated modifier values share a system.
+# The loop over distinct values is independent across values and draws no
+# random numbers, so with options(drl.cate.cores=k) it runs in k forked
+# workers and returns exactly the serial result.
 .local.loo <- function(x,y,h,b,debias,kernel.type="epa",min.local=NULL,
                        eval.indices=seq_along(x)) {
   .validate.min.local(min.local)
@@ -62,12 +65,18 @@
     stop("eval.indices must be distinct valid observation indices")
   kern <- function(u) .kern(u,kernel.type)
   pred <- rep(NA_real_,length(eval.indices))
-  for(a in unique(x[eval.indices])) {
-    positions <- which(x[eval.indices]==a)
+  xe <- x[eval.indices]
+  ux <- unique(xe)
+  # Positions of each distinct value, in increasing order, as which() gives.
+  groups <- split(seq_along(xe), factor(match(xe, ux), levels=seq_along(ux)))
+  one <- function(g) {
+    a <- ux[g]
+    positions <- groups[[g]]
     ids <- eval.indices[positions]
+    p <- rep(NA_real_,length(positions))
     hh <- .local.bandwidth(x[-ids[1]],a,h,min.local)
     bb <- if(debias) .local.bandwidth(x[-ids[1]],a,b,min.local) else b
-    if(!is.finite(hh) || !is.finite(bb)) next
+    if(!is.finite(hh) || !is.finite(bb)) return(p)
     fit <- .local.fit(x,y,a,hh,bb,kern,debias)
     safe <- !is.null(fit)
     if(safe) {
@@ -80,17 +89,26 @@
       }
     }
     if(safe) {
-      pred[positions] <- (fit$alpha[1]-lh*y[ids])/(1-lh)
-      if(debias) pred[positions] <- pred[positions]-(hh/bb)^2*fit$c2/(1-lh)*
+      p <- (fit$alpha[1]-lh*y[ids])/(1-lh)
+      if(debias) p <- p-(hh/bb)^2*fit$c2/(1-lh)*
         (fit$beta[3]-qb*(y[ids]-fit$beta[1])/(1-lb))
     } else {
-      for(pos in positions) {
-        i <- eval.indices[pos]
+      for(m in seq_along(ids)) {
+        i <- ids[m]
         # Rebuild the small weighted QR systems, not any nuisance model.
         deleted <- .local.fit(x[-i],y[-i],a,hh,bb,kern,debias)
-        if(!is.null(deleted)) pred[pos] <- deleted$theta
+        if(!is.null(deleted)) p[m] <- deleted$theta
       }
     }
+    p
+  }
+  if(.drl.cores()<=1L) {
+    for(g in seq_along(ux)) pred[groups[[g]]] <- one(g)
+  } else {
+    chunks <- .drl.chunks(length(ux))
+    parts <- .drl.lapply(chunks, function(ix) lapply(ix, one))
+    for(k in seq_along(chunks)) for(m in seq_along(chunks[[k]]))
+      pred[groups[[chunks[[k]][m]]]] <- parts[[k]][[m]]
   }
   list(pred=pred, risk=if(any(!is.finite(pred))) Inf else mean((y[eval.indices]-pred)^2))
 }
@@ -145,4 +163,45 @@
     winners=data.frame(candidate=winners,h=h[winners],b=b[winners]),
     median=c(h=median.h,b=median.b),selected=selected,
     selection=if(exhaustive) "exhaustive" else "median-bandwidth"))
+}
+
+# ---------------------------------------------------------------------------
+# Parallel loops (fork addition, 2026-10-08; rebased on 90ad039 2026-10-12).
+#   options(drl.cate.cores=k)  forked workers for .local.loo() and
+#                              .pd.integrate() (unix only; default 1)
+# The default reproduces the serial result; with k > 1 the result is the same,
+# since neither loop draws random numbers.
+# ---------------------------------------------------------------------------
+
+.drl.cores <- function() {
+  k <- getOption("drl.cate.cores", 1L)
+  if(!is.numeric(k) || length(k)!=1L || !is.finite(k) || k<1 || k!=floor(k))
+    stop("option drl.cate.cores must be a positive integer")
+  if(.Platform$OS.type!="unix") 1L else as.integer(k)
+}
+
+# About four chunks per worker, contiguous, so results are reassembled in order.
+.drl.chunks <- function(n) {
+  k <- min(n, 4L*.drl.cores())
+  split(seq_len(n), cut(seq_len(n), k, labels=FALSE))
+}
+
+# mclapply that leaves the caller's RNG state untouched and fails loudly.  The
+# loops it runs draw no random numbers, so the result equals lapply()'s.
+.drl.lapply <- function(X, FUN) {
+  cores <- .drl.cores()
+  if(cores<=1L || length(X)<=1L) return(lapply(X, FUN))
+  had.seed <- exists(".Random.seed", envir=globalenv(), inherits=FALSE)
+  if(had.seed) seed <- get(".Random.seed", envir=globalenv())
+  on.exit(if(had.seed) assign(".Random.seed", seed, envir=globalenv()))
+  out <- parallel::mclapply(X, FUN, mc.cores=min(cores, length(X)),
+                            mc.preschedule=TRUE, mc.set.seed=FALSE)
+  bad <- vapply(out, function(o) is.null(o) || inherits(o, "try-error"), logical(1))
+  if(any(bad)) {
+    o <- out[[which(bad)[1]]]
+    stop("a parallel worker failed (", sum(bad), " of ", length(out), " tasks): ",
+         if(inherits(o, "try-error")) conditionMessage(attr(o, "condition"))
+         else "no result; it may have run out of memory", call.=FALSE)
+  }
+  out
 }
