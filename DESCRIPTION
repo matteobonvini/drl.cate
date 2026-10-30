@@ -1,13 +1,18 @@
 Package: drl.cate
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9001
-Authors@R: 
-    person(given = "First",
-           family = "Last",
+Title: Doubly Robust Learning of Conditional Average Treatment Effects
+Authors@R:
+    person(given = "Matteo",
+           family = "Bonvini",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+           email = "mb1662@stat.rutgers.edu")
+    person(given = "Luke",
+           family = "Keele",
+           role = c("aut", "cre"),
+           email = "Luke.Keele@pennmedicine.upenn.edu")
+Description: Provides methods for estimating conditional average
+    treatment effects using doubly robust learners. Supports flexible
+    nuisance function estimation, local smoothing, bias correction,
+    and statistical inference for heterogeneous treatment effects.
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
